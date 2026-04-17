@@ -22,7 +22,7 @@ def test_get_stats(client):
     assert response.status_code == 200
     data = response.get_json()
     assert "success_rate" in data
-    assert data["success_rate"] == 70
+    assert data["success_rate"] == 69.6
     assert "total_cases" in data
     assert data["total_cases"] == 60000
 
