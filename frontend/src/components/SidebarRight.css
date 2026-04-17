@@ -18,11 +18,11 @@
 }
 
 .agent-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-family: inherit;
+  font-size: 15px !important;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -50,6 +50,10 @@
   gap: 16px;
 }
 
+.chat-container, .chat-container * {
+  font-size: 15px !important;
+}
+
 .message-wrapper {
   display: flex;
   width: 100%;
@@ -64,10 +68,10 @@
 }
 
 .message-bubble {
-  max-width: 88%;
-  padding: 12px 14px;
+  max-width: 92%;
+  padding: 16px 18px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px !important;
   line-height: 1.6;
   white-space: pre-wrap;
   transition: all 0.2s ease;
@@ -97,9 +101,9 @@
 }
 
 .message-bubble h3 {
-  margin: 0 0 12px 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  margin: 0;
+  font-family: inherit;
+  font-size: 15px !important;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--accent-color);
@@ -111,20 +115,34 @@
 .message-bubble .case-number-text {
   display: block;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 15px !important;
   color: var(--text-muted);
+  margin-top: 4px;
   margin-bottom: 12px;
   opacity: 0.8;
 }
 
+.recommendation-header {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 15px !important;
+}
+
+.content-line {
+  margin-bottom: 2px;
+  font-size: 15px !important;
+}
+
 .message-bubble strong {
   color: var(--accent-color);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 15px !important;
 }
 
 .message-bubble.recommendation {
   border-left: 3px solid var(--success-color);
   background-color: rgba(76, 175, 80, 0.02);
+  font-size: 15px !important;
 }
 
 .message-bubble.recommendation strong {
@@ -220,7 +238,7 @@
   margin: 8px 0;
   color: var(--text-muted);
   font-style: italic;
-  font-size: 12px;
+  font-size: 14.5px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 0 4px 4px 0;
 }
@@ -244,7 +262,7 @@
   color: var(--text-main);
   padding: 10px 14px;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.4;
   resize: none;
   min-height: 42px;
@@ -286,7 +304,7 @@
 
 .message-bubble.processing {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 14.5px;
   color: var(--accent-color);
   display: flex;
   align-items: center;

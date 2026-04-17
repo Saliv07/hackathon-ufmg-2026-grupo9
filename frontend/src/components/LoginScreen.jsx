@@ -78,7 +78,7 @@ function LoginScreen({ onLogin }) {
             >
               <div className="enter-key-shadow" />
               <div className="enter-key-cap">
-                <span className="arrow-enter" />
+                <img src="/enter-logo.svg" alt="" className="login-btn-logo" />
                 <span>ENTER</span>
               </div>
             </button>

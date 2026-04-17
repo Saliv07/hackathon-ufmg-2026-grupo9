@@ -5,30 +5,25 @@ import './CaseSummary.css';
 function CaseSummary({ caseData, onProceed }) {
   if (!caseData) return null;
 
-  // Mocked data for the new structured overview if not provided by backend
-  const score = caseData?.score || 85;
+  // Extracts structured data from caseData provided by backend
+  const score = caseData?.score || 0;
+  const askedValue = caseData?.askedValue || 0;
+  const claimDetails = caseData?.claimDetails || 'Valor do pedido não identificado.';
   const authorProfile = caseData?.profile || { 
-    age: 65, 
-    profession: 'Aposentado', 
-    literacy: 'Lê e Escreve',
-    priority: 'Idoso',
-    income: 'R$ 1.412,00',
-    location: 'Belo Horizonte - MG'
+    gender: '-',
+    age: '-', 
+    civilStatus: '-',
+    benefitType: '-',
+    profession: '-', 
+    literacy: '-',
+    priority: '-',
+    income: '-',
+    location: '-'
   };
   
-  const evidence = caseData?.evidence || [
-    { id: 'contract', label: 'Contrato Assinado', status: 'valid', detail: 'Biometria Facial' },
-    { id: 'id', label: 'Documento de Identidade', status: 'valid', detail: 'Compatível' },
-    { id: 'ted', label: 'Comprovante TED', status: 'valid', detail: 'Mesma Titularidade' },
-    { id: 'usage', label: 'Utilização do Crédito', status: 'invalid', detail: 'Valor não movimentado' }
-  ];
-
-  const redFlags = caseData?.redFlags || [
-    { id: 1, type: 'warning', message: 'Autor Idoso (>60 anos) - Atenção à vulnerabilidade' },
-    { id: 2, type: 'danger', message: 'Alto volume de ações idênticas deste advogado (Litigância Predatória)' }
-  ];
-
-  const thesis = caseData?.thesis || 'Exercício regular de direito - Contratação validada por biometria';
+  const evidence = caseData?.evidence || [];
+  const redFlags = caseData?.redFlags || [];
+  const thesis = caseData?.thesis || 'Análise de tese pendente...';
 
   return (
     <div className="case-summary-container slide-in">
@@ -47,13 +42,22 @@ function CaseSummary({ caseData, onProceed }) {
             <div className="score-section">
               <div className="card-header">
                 <ShieldCheck size={18} />
-                <h3>Score de Defesa</h3>
+                <h3>Análise de Risco</h3>
               </div>
               <div className="score-display">
                 <div className="score-circle">
                   <span className="score-value">{score}%</span>
                 </div>
-                <p className="score-desc">Alta Probabilidade</p>
+                <div className="score-details">
+                  <p className="score-desc">Score de Defesa</p>
+                  <div className="claim-box">
+                    <span className="claim-label">Pedido Total</span>
+                    <span className="claim-value">R$ {askedValue.toLocaleString('pt-BR')}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="claim-breakdown">
+                <small>{claimDetails}</small>
               </div>
             </div>
             
@@ -62,10 +66,11 @@ function CaseSummary({ caseData, onProceed }) {
                 <User size={14} /> <h3>Perfil do Autor</h3>
               </div>
               <ul className="profile-list">
-                <li><strong>Idade:</strong> <span>{authorProfile.age} anos ({authorProfile.priority})</span></li>
+                <li><strong>Gênero/Idade:</strong> <span>{authorProfile.gender}, {authorProfile.age} anos</span></li>
+                <li><strong>Estado Civil:</strong> <span>{authorProfile.civilStatus}</span></li>
                 <li><strong>Localização:</strong> <span>{authorProfile.location}</span></li>
                 <li><strong>Renda Est.:</strong> <span>{authorProfile.income}</span></li>
-                <li><strong>Ocupação:</strong> <span>{authorProfile.profession}</span></li>
+                <li><strong>Tipo Benefício:</strong> <span>{authorProfile.benefitType}</span></li>
                 <li><strong>Instrução:</strong> <span>{authorProfile.literacy}</span></li>
               </ul>
             </div>
@@ -78,14 +83,18 @@ function CaseSummary({ caseData, onProceed }) {
               <h3>Checklist Probatório</h3>
             </div>
             <div className="evidence-list">
-              {evidence.map(item => (
-                <div key={item.id} className={`evidence-item ${item.status}`}>
-                  <div className="evidence-details">
-                    <span className="evidence-label">{item.label}</span>
-                    <span className="evidence-subtext">{item.detail}</span>
+              {evidence.length > 0 ? (
+                evidence.map((item) => (
+                  <div key={item.id} className={`evidence-item ${item.status}`}>
+                    <div className="evidence-details">
+                      <span className="evidence-label">{item.label}</span>
+                      <span className="evidence-subtext">{item.detail}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="empty-state">Nenhuma evidência estruturada disponível.</p>
+              )}
             </div>
           </div>
         </div>
@@ -99,12 +108,16 @@ function CaseSummary({ caseData, onProceed }) {
               <h3>Alertas e Red Flags</h3>
             </div>
             <div className="flags-list">
-              {redFlags.map(flag => (
-                <div key={flag.id} className={`flag-item ${flag.type}`}>
-                  <Info size={16} />
-                  <span>{flag.message}</span>
-                </div>
-              ))}
+              {redFlags.length > 0 ? (
+                redFlags.map(flag => (
+                  <div key={flag.id} className={`flag-item ${flag.type}`}>
+                    <Info size={16} />
+                    <span>{flag.message}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="empty-state">Nenhum alerta crítico detectado.</p>
+              )}
             </div>
           </div>
           

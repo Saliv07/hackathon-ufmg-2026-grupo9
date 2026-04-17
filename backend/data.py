@@ -17,9 +17,33 @@ CASES = [
         "risk": "Baixo",
         "value": "R$ 20.000,00",
         "askedValue": 20000,
+        "claimDetails": "R$ 15.000,00 (Danos Morais) + R$ 5.000,00 (Repetição Indébito)",
         "recommendation": "DEFESA",
         "summary": "Caso robusto com subsídios completos. Assinatura manuscrita presente e validada. Dossiê Veritas confirma conformidade biométrica (91%). Extrato bancário prova crédito em conta própria e movimentação subsequente.",
         "suggestion": "Manter tese de defesa. As provas documentais são sólidas e contradizem a versão da autora de que nunca recebeu o dinheiro ou contratou o serviço.",
+        "score": 92,
+        "profile": {
+            "gender": "Feminino",
+            "age": 68,
+            "profession": "Aposentada (INSS)",
+            "benefitType": "Aposentadoria por Idade",
+            "civilStatus": "Viúva",
+            "literacy": "Lê e Escreve",
+            "priority": "Idoso (Estatuto)",
+            "income": "R$ 2.450,00",
+            "location": "São Luís - MA"
+        },
+        "evidence": [
+            { "id": "ted", "label": "Titularidade Crédito", "status": "valid", "detail": "Crédito em conta própria" },
+            { "id": "biometry", "label": "Biometria/Dossiê", "status": "valid", "detail": "Match de 91% (Veritas)" },
+            { "id": "contract", "label": "Contrato Assinado", "status": "valid", "detail": "Manuscrito + Digital" },
+            { "id": "usage", "label": "Uso do Recurso", "status": "valid", "detail": "PIX/TEDs após crédito" },
+            { "id": "payments", "label": "Histórico Pagamentos", "status": "valid", "detail": "24 parcelas pagas" }
+        ],
+        "redFlags": [
+            { "id": 1, "type": "warning", "message": "Peticionamento em massa pelo mesmo patrono" }
+        ],
+        "thesis": "Exercício regular de direito - Contratação comprovada por prova documental e pericial indireta.",
         "documents": [
             {
                 "id": 101, "name": "01_Autos_Processo_0801234.pdf", "type": "Autos",
@@ -73,9 +97,34 @@ CASES = [
         "risk": "Alto",
         "value": "R$ 25.000,00",
         "askedValue": 25000,
+        "claimDetails": "R$ 20.000,00 (Danos Morais) + R$ 5.000,00 (Repetição Indébito)",
         "recommendation": "ACORDO",
         "summary": "Subsídios incompletos e fortes indícios de fraude. Crédito realizado em conta de terceiro (CEF). Ausência de contrato assinado e vídeo de liveness não localizado. Autor registrou BO.",
         "suggestion": "Propor acordo imediato. O risco de condenação é alto devido ao 'Fortuito Interno' (Súmula 479 STJ). Valor sugerido entre R$ 5.000 e R$ 7.000.",
+        "score": 18,
+        "profile": {
+            "gender": "Masculino",
+            "age": 42,
+            "profession": "Autônomo",
+            "benefitType": "Auxílio Doença",
+            "civilStatus": "Solteiro",
+            "literacy": "Ensino Médio",
+            "priority": "Nenhuma",
+            "income": "R$ 2.100,00",
+            "location": "Manaus - AM"
+        },
+        "evidence": [
+            { "id": "ted", "label": "Titularidade Crédito", "status": "danger", "detail": "Crédito para TERCEIRO (CEF)" },
+            { "id": "biometry", "label": "Biometria/Dossiê", "status": "invalid", "detail": "Liveness Ausente" },
+            { "id": "contract", "label": "Contrato Assinado", "status": "invalid", "detail": "Não localizado" },
+            { "id": "usage", "label": "Uso do Recurso", "status": "invalid", "detail": "Sem movimentação do autor" },
+            { "id": "payments", "label": "Histórico Pagamentos", "status": "warning", "detail": "Apenas 2 parcelas pagas" }
+        ],
+        "redFlags": [
+            { "id": 1, "type": "danger", "message": "Crédito para terceiros - Fraude operacional provável" },
+            { "id": 2, "type": "warning", "message": "Boletim de Ocorrência registrado pelo autor" }
+        ],
+        "thesis": "Acordo imediato - Vulnerabilidade por falha na segurança do sistema (Fortuito Interno).",
         "documents": [
             {
                 "id": 201, "name": "01_Autos_Processo_0654321.pdf", "type": "Autos",

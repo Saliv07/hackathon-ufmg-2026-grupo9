@@ -186,26 +186,11 @@
     inset 0 2px 6px rgba(0,0,0,0.25),
     0 1px 2px rgba(255,174,53,0.15);
 }
-.enter-key-cap .arrow-enter {
-  width: 22px; height: 22px;
-  display: inline-block;
-  position: relative;
-}
-.enter-key-cap .arrow-enter::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 4px;
-  width: 18px; height: 10px;
-  border-left: 2px solid #1a0f00;
-  border-bottom: 2px solid #1a0f00;
-}
-.enter-key-cap .arrow-enter::after {
-  content: '';
-  position: absolute;
-  left: 14px; top: 0;
-  width: 8px; height: 2px;
-  background: #1a0f00;
-  box-shadow: 0 2px 0 #1a0f00, 0 4px 0 #1a0f00;
+.login-btn-logo {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0);
+  opacity: 0.85;
 }
 
 .enter-key-hint {

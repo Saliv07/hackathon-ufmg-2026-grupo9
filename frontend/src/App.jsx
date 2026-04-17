@@ -39,7 +39,27 @@ function App() {
   const [viewerWidth, setViewerWidth] = useState(600);
   const [openDocuments, setOpenDocuments] = useState([]);
   const [activeDocumentId, setActiveDocumentId] = useState(null);
-  const [chatHistories, setChatHistories] = useState({});
+  const [chatHistories, setChatHistories] = useState(() => {
+    try {
+      const saved = localStorage.getItem('juridico-chat-histories');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [customDocs, setCustomDocs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('juridico-custom-docs');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [workspaceSessions, setWorkspaceSessions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('juridico-workspace-sessions');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
   const [showSettings, setShowSettings] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
@@ -58,6 +78,18 @@ function App() {
     localStorage.setItem('juridico-ai-settings', JSON.stringify(settings));
     document.documentElement.setAttribute('data-theme', settings.darkMode ? 'dark' : 'light');
   }, [settings]);
+
+  useEffect(() => {
+    localStorage.setItem('juridico-chat-histories', JSON.stringify(chatHistories));
+  }, [chatHistories]);
+
+  useEffect(() => {
+    localStorage.setItem('juridico-custom-docs', JSON.stringify(customDocs));
+  }, [customDocs]);
+
+  useEffect(() => {
+    localStorage.setItem('juridico-workspace-sessions', JSON.stringify(workspaceSessions));
+  }, [workspaceSessions]);
 
   useEffect(() => {
     fetch(`${API_URL}/cases`)
@@ -86,13 +118,39 @@ function App() {
     }));
 
   const handleSelectCase = (caseData) => {
-    const docs = enrichDocs(caseData);
+    const baseDocs = enrichDocs(caseData);
+    const caseCustomDocs = customDocs[caseData.id] || [];
+    const allDocs = [...baseDocs, ...caseCustomDocs];
+    
     setSelectedCase(caseData);
-    setCaseDocuments(docs);
-    const firstDoc = docs[0];
-    setOpenDocuments([firstDoc]);
-    setActiveDocumentId(firstDoc.id);
-    setSelectedDocument(firstDoc);
+    setCaseDocuments(allDocs);
+
+    const savedSession = workspaceSessions[caseData.id];
+    if (savedSession) {
+      // Filtra documentos salvos para garantir que ainda existem (podem ter sido deletados em teoria)
+      const validOpenIds = savedSession.openDocumentIds || [];
+      const restoredOpen = allDocs.filter(d => validOpenIds.includes(d.id));
+      
+      if (restoredOpen.length > 0) {
+        setOpenDocuments(restoredOpen);
+        const activeDoc = allDocs.find(d => d.id === savedSession.activeDocumentId) || restoredOpen[0];
+        setActiveDocumentId(activeDoc.id);
+        setSelectedDocument(activeDoc);
+      } else {
+        const firstDoc = allDocs[0];
+        setOpenDocuments([firstDoc]);
+        setActiveDocumentId(firstDoc.id);
+        setSelectedDocument(firstDoc);
+      }
+      if (savedSession.currentView) setCurrentView(savedSession.currentView);
+    } else {
+      const firstDoc = allDocs[0];
+      setOpenDocuments([firstDoc]);
+      setActiveDocumentId(firstDoc.id);
+      setSelectedDocument(firstDoc);
+      setCurrentView('case-summary');
+    }
+
     setSuccessChance(caseData.recommendation === 'DEFESA' ? 95 : 15);
 
     if (!chatHistories[caseData.id]) {
@@ -115,9 +173,21 @@ function App() {
       ];
       setChatHistories(prev => ({ ...prev, [caseData.id]: initialMessages }));
     }
-
-    setCurrentView('case-summary');
   };
+
+  // Salva sessão do workspace sempre que mudar documentos abertos ou ativos
+  useEffect(() => {
+    if (selectedCase) {
+      setWorkspaceSessions(prev => ({
+        ...prev,
+        [selectedCase.id]: {
+          openDocumentIds: openDocuments.map(d => d.id),
+          activeDocumentId: activeDocumentId,
+          currentView: currentView
+        }
+      }));
+    }
+  }, [openDocuments, activeDocumentId, currentView, selectedCase]);
 
   const handleSelectDocument = (doc) => {
     if (!openDocuments.find(d => d.id === doc.id)) {
@@ -138,10 +208,17 @@ function App() {
   };
 
   const handleUploadDocument = (newDoc) => {
-    // Upload: fileUrl é relativa, constrói URL completa
     const enriched = newDoc.fileUrl?.startsWith('/api/')
       ? { ...newDoc, fileUrl: `${BACKEND}${newDoc.fileUrl}` }
       : newDoc;
+    
+    if (selectedCase) {
+      setCustomDocs(prev => ({
+        ...prev,
+        [selectedCase.id]: [...(prev[selectedCase.id] || []), enriched]
+      }));
+    }
+
     setCaseDocuments(prev => [...prev, enriched]);
     setOpenDocuments(prev => [...prev, enriched]);
     setActiveDocumentId(enriched.id);
@@ -158,6 +235,14 @@ function App() {
       content: '',
       caseNumber: selectedCase?.number || '',
     };
+
+    if (selectedCase) {
+      setCustomDocs(prev => ({
+        ...prev,
+        [selectedCase.id]: [...(prev[selectedCase.id] || []), note]
+      }));
+    }
+
     setCaseDocuments(prev => [...prev, note]);
     setOpenDocuments(prev => [...prev, note]);
     setActiveDocumentId(noteId);
@@ -169,6 +254,14 @@ function App() {
     setCaseDocuments(update);
     setOpenDocuments(update);
     setSelectedDocument(prev => prev?.id === docId ? { ...prev, content: newContent } : prev);
+
+    // Persiste alteração em documentos customizados (notas)
+    if (selectedCase) {
+      setCustomDocs(prev => ({
+        ...prev,
+        [selectedCase.id]: (prev[selectedCase.id] || []).map(d => d.id === docId ? { ...d, content: newContent } : d)
+      }));
+    }
   };
 
   const handleProceedToWorkspace = () => setCurrentView('workspace');

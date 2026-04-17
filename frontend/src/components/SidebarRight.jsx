@@ -78,20 +78,42 @@ function SidebarRight({
   };
 
   const renderContent = (content, type) => {
+    const processBold = (text) => {
+      if (typeof text !== 'string') return text;
+      const parts = text.split(/(\*\*.*?\*\*)/g);
+      return parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+    };
+
     return content.split('\n').map((line, i) => {
-      if (line.startsWith('> "') && line.endsWith('"')) {
-        return <blockquote key={i} className="chat-blockquote">{line.slice(3, -1)}</blockquote>;
+      const trimmed = line.trim();
+      if (!trimmed && i > 0) return <br key={i} />;
+
+      if (line.startsWith('> "')) {
+        return <blockquote key={i} className="chat-blockquote">{processBold(line.slice(3, line.endsWith('"') ? -1 : undefined))}</blockquote>;
       }
-      if (line.startsWith('### ')) return <h3 key={i}>{line.replace('### ', '')}</h3>;
+      
+      if (line.startsWith('### ')) {
+        return <h3 key={i}>{processBold(line.replace('### ', ''))}</h3>;
+      }
+
       if (type === 'case-summary' && i === 1 && line.match(/[0-9.-]+/)) {
-        return <span key={i} className="case-number-text">{line}</span>;
+        return <div key={i} className="case-number-text">{line}</div>;
       }
-      if (line.includes('**')) {
-        const parts = line.split('**');
-        return <div key={i}>{parts.map((p, idx) => idx % 2 === 1 ? <strong key={idx}>{p}</strong> : p)}</div>;
+
+      if (line.startsWith('Recomendação:')) {
+        return (
+          <div key={i} className="recommendation-header">
+            <strong>{processBold(line)}</strong>
+          </div>
+        );
       }
-      if (line.startsWith('Recomendação:')) return <strong key={i}>{line}</strong>;
-      return <div key={i}>{line || <br />}</div>;
+
+      return <div key={i} className="content-line">{processBold(line)}</div>;
     });
   };
 
