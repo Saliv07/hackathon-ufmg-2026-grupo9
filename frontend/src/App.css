@@ -23,17 +23,27 @@
 }
 
 .resizer-bar {
-  width: 6px;
+  width: 2px;
   cursor: col-resize;
-  background-color: transparent;
+  background-color: var(--border-color);
   transition: background-color 0.2s;
-  z-index: 10;
-  border-left: 1px solid var(--border-color);
-  border-right: 1px solid var(--border-color);
+  z-index: 100;
+  position: relative;
 }
 
-.resizer-bar:hover, .resizer-bar:active {
+.resizer-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
+  background-color: transparent;
+}
+
+.resizer-bar:hover, .resizer-bar.active {
   background-color: var(--accent-color);
+  width: 2px;
 }
 
 .resizable-viewer, .resizable-docs {

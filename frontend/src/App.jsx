@@ -8,7 +8,10 @@ import Dashboard from './components/Dashboard';
 import CaseSelection from './components/CaseSelection';
 import CaseSummary from './components/CaseSummary';
 import GlobalSidebar from './components/GlobalSidebar';
+import LoginScreen from './components/LoginScreen';
+import DataExplorer from './components/DataExplorer';
 import SettingsModal from './components/SettingsModal';
+import SearchOverlay from './components/SearchOverlay';
 
 const BACKEND = `http://${window.location.hostname}:5000`;
 const API_URL = `${BACKEND}/api`;
@@ -24,6 +27,9 @@ function App() {
   const [cases, setCases] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [successChance, setSuccessChance] = useState(85);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try { return localStorage.getItem('enter-logged-in') === 'true'; } catch { return false; }
+  });
   const [currentView, setCurrentView] = useState('case-selection');
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDocuments, setCaseDocuments] = useState([]);
@@ -35,15 +41,16 @@ function App() {
   const [activeDocumentId, setActiveDocumentId] = useState(null);
   const [chatHistories, setChatHistories] = useState({});
   const [showSettings, setShowSettings] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [pendingQuote, setPendingQuote] = useState('');
 
   const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('juridico-ai-settings');
-      return saved ? JSON.parse(saved) : { aiModel: 'gpt-4o', darkMode: true, temperature: 0.3 };
+      return saved ? JSON.parse(saved) : { aiModel: 'gpt-4.1-mini', darkMode: true, temperature: 0.3 };
     } catch {
-      return { aiModel: 'gpt-4o', darkMode: true };
+      return { aiModel: 'gpt-4.1-mini', darkMode: true };
     }
   });
 
@@ -57,6 +64,18 @@ function App() {
       .then(res => res.json())
       .then(data => { setCases(data); setLoading(false); })
       .catch(() => setLoading(false));
+  }, []);
+
+  // Atalho Ctrl+K para busca
+  useEffect(() => {
+    const handleK = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleK);
+    return () => window.removeEventListener('keydown', handleK);
   }, []);
 
   // Enriquece documentos do caso com fileUrl apontando para o backend
@@ -159,12 +178,13 @@ function App() {
     if (currentView === 'case-selection') return <CaseSelection onSelectCase={handleSelectCase} cases={cases} />;
     if (currentView === 'case-summary') return <CaseSummary caseData={selectedCase} onProceed={handleProceedToWorkspace} />;
     if (currentView === 'dashboard') return <Dashboard caseData={selectedCase || cases[0]} />;
+    if (currentView === 'data-explorer') return <DataExplorer />;
 
     if (currentView === 'workspace') {
       return (
         <div className="main-content slide-in-right">
           {/* Coluna: lista de documentos */}
-          <div className="resizable-docs" style={{ width: docsWidth, minWidth: 150, maxWidth: 500 }}>
+          <div className="resizable-docs" style={{ width: `${docsWidth}px`, flexShrink: 0 }}>
             <SidebarLeft
               documents={caseDocuments}
               selectedDocument={selectedDocument}
@@ -175,15 +195,28 @@ function App() {
           </div>
 
           <div className="resizer-bar" onMouseDown={(e) => {
-            const start = { x: e.clientX, w: docsWidth };
-            const move = ev => setDocsWidth(Math.max(150, Math.min(500, start.w + ev.clientX - start.x)));
-            const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
-            document.addEventListener('mousemove', move);
-            document.addEventListener('mouseup', up);
+            e.preventDefault();
+            const target = e.currentTarget;
+            target.classList.add('active');
+            document.body.classList.add('resizing-active');
+            const startX = e.clientX;
+            const startW = docsWidth;
+            const onMouseMove = (ev) => {
+              const newW = Math.max(160, Math.min(450, startW + ev.clientX - startX));
+              setDocsWidth(newW);
+            };
+            const onMouseUp = () => {
+              target.classList.remove('active');
+              document.body.classList.remove('resizing-active');
+              document.removeEventListener('mousemove', onMouseMove);
+              document.removeEventListener('mouseup', onMouseUp);
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
           }} />
 
           {/* Coluna: visualizador com abas */}
-          <div className="resizable-viewer" style={{ width: viewerWidth, minWidth: 300, maxWidth: 'calc(100% - 550px)' }}>
+          <div className="resizable-viewer" style={{ width: `${viewerWidth}px`, flexShrink: 0 }}>
             <div className="document-tabs">
               {openDocuments.map(doc => (
                 <div
@@ -207,15 +240,29 @@ function App() {
           </div>
 
           <div className="resizer-bar" onMouseDown={(e) => {
-            const start = { x: e.clientX, w: viewerWidth };
-            const move = ev => setViewerWidth(Math.max(300, start.w + ev.clientX - start.x));
-            const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
-            document.addEventListener('mousemove', move);
-            document.addEventListener('mouseup', up);
+            e.preventDefault();
+            const target = e.currentTarget;
+            target.classList.add('active');
+            document.body.classList.add('resizing-active');
+            const startX = e.clientX;
+            const startW = viewerWidth;
+            const onMouseMove = (ev) => {
+              const maxAvailable = window.innerWidth - docsWidth - 350; // min 350 for chat
+              const newW = Math.max(300, Math.min(maxAvailable, startW + ev.clientX - startX));
+              setViewerWidth(newW);
+            };
+            const onMouseUp = () => {
+              target.classList.remove('active');
+              document.body.classList.remove('resizing-active');
+              document.removeEventListener('mousemove', onMouseMove);
+              document.removeEventListener('mouseup', onMouseUp);
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
           }} />
 
           {/* Coluna: chat */}
-          <div className="resizable-chat" style={{ flex: 1, minWidth: 300 }}>
+          <div className="resizable-chat" style={{ flex: 1, minWidth: 320 }}>
             <SidebarRight
               caseData={selectedCase}
               successChance={successChance}
@@ -234,12 +281,29 @@ function App() {
     }
   };
 
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+    try { localStorage.setItem('enter-logged-in', 'true'); } catch {}
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentView('case-selection');
+    setSelectedCase(null);
+    try { localStorage.removeItem('enter-logged-in'); } catch {}
+  };
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return (
     <div className="app-shell">
       <TopBar
         successChance={successChance}
         currentView={currentView}
         onNavigate={view => setCurrentView(view)}
+        onOpenSearch={() => setIsSearchOpen(true)}
         hasNewNotification={hasNewNotification}
         onClearNotification={() => setHasNewNotification(false)}
       />
@@ -253,6 +317,7 @@ function App() {
           isCollapsed={isSidebarCollapsed}
           onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           onOpenSettings={() => setShowSettings(true)}
+          onLogout={handleLogout}
         />
         <div className="view-container">{renderView()}</div>
       </div>
@@ -262,6 +327,15 @@ function App() {
           settings={settings}
           onSave={newSettings => setSettings(newSettings)}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {isSearchOpen && (
+        <SearchOverlay
+          cases={cases}
+          selectedCase={selectedCase}
+          onClose={() => setIsSearchOpen(false)}
+          onSelectCase={handleSelectCase}
         />
       )}
     </div>

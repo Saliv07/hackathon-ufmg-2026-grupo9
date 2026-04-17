@@ -1,151 +1,247 @@
 import React, { useState, useEffect } from 'react';
+import { Bot, Shield, TrendingUp, Bell, Scale } from 'lucide-react';
 import './Dashboard.css';
+
+const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+const ALERTS = [
+  { level: 'red', title: '3 casos de alto risco aguardando decisão', sub: 'SLA em <4h' },
+  { level: 'yellow', title: 'Advogado externo fora da política em 2 casos', sub: 'Esc. Almeida & Partners' },
+  { level: 'green', title: '86 acordos fechados nesta semana', sub: 'R$ 1.2M economizados' },
+];
 
 function Dashboard({ caseData }) {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/stats')
+    const hostname = window.location.hostname;
+    fetch(`http://${hostname}:5000/api/stats`)
       .then(res => res.json())
       .then(data => setStats(data))
       .catch(err => console.error("Erro ao buscar estatísticas:", err));
   }, []);
 
-  if (!caseData) return <div className="no-case">Selecione um caso para ver a análise estratégica.</div>;
   if (!stats) return <div className="loading-stats">Carregando estatísticas do servidor Python...</div>;
 
-  const askedValue = caseData.askedValue || 0;
-  const isDefesa = caseData.recommendation === 'DEFESA';
-  
-  const negotiationValue = isDefesa ? 0 : askedValue * 0.28; 
+  const askedValue = caseData?.askedValue || 0;
+  const isDefesa = caseData?.recommendation === 'DEFESA';
+  const negotiationValue = isDefesa ? 0 : askedValue * 0.28;
   const legalCosts = askedValue * 0.15 + 2000;
   const riskValue = askedValue + legalCosts;
 
   return (
-    <div className="dashboard-container slide-in-right">
-      <div className="dashboard-header">
-        <h2>Dashboard Estratégico - Análise de Viabilidade</h2>
-        <p>Processo: {caseData.number} | {caseData.plaintiff}</p>
+    <div className="dash-view fade-in">
+      {/* Header */}
+      <div className="dash-header">
+        <div className="dash-header-text">
+          <div className="dash-breadcrumb">
+            <span>enterOS</span><span>analytics</span><span>dashboard macro</span>
+          </div>
+          <h1>Painel de Inteligência</h1>
+          <p>
+            Base histórica de {stats.total_cases?.toLocaleString()} processos
+            {caseData ? ` · caso ativo: ${caseData.plaintiff}` : ''}
+          </p>
+        </div>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Painel de Valores */}
-        <div className="dashboard-card">
-          <div className="card-header">
-            <h3>Comparativo de Cenários</h3>
-          </div>
-          <div className="card-body">
-            <div className="kpi-group">
-              <div className="kpi">
-                <div className="kpi-value highlight-danger">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(askedValue)}
-                </div>
-                <div className="kpi-label">Valor do Pedido (Risco)</div>
-              </div>
-              <div className="kpi">
-                <div className="kpi-value highlight-success">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(negotiationValue)}
-                </div>
-                <div className="kpi-label">{isDefesa ? 'Valor Sugerido para Acordo' : 'Teto de Negociação Sugerido'}</div>
-              </div>
-            </div>
-            
-            <div className="chart-placeholder">
-              <div className="chart-bar" style={{width: '100%', background: 'var(--danger-color)'}}></div>
-              <div className="chart-bar" style={{width: isDefesa ? '0%' : '30%', background: 'var(--success-color)'}}></div>
-            </div>
-            
-            <div className="stats-list">
-              <h4>{isDefesa ? 'Análise de Risco' : 'Por que fazer o acordo?'}</h4>
-              <ul>
-                <li>Custas processuais estimadas: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(legalCosts)}</li>
-                <li>Risco total em caso de perda: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(riskValue)}</li>
-                <li className="highlight-success">
-                  <strong>
-                    {isDefesa 
-                      ? 'Economia projetada (Sucesso na Defesa): ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(riskValue)
-                      : 'Economia projetada (Acordo): ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(riskValue - negotiationValue)}
-                  </strong>
-                </li>
-              </ul>
-            </div>
-          </div>
+      {/* Macro strip KPIs */}
+      <div className="dash-macro-strip">
+        <div className="dash-macro-cell">
+          <span className="label">Taxa de êxito</span>
+          <span className="value">{stats.success_rate}%</span>
+          <span className="sub"><span className="trend up">▲</span> 41.733 / {stats.total_cases?.toLocaleString()}</span>
         </div>
-
-        {/* Painel de Recomendação da IA */}
-        <div className="dashboard-card">
-          <div className="card-header">
-            <h3>Justificativa do Agente IA (Python API)</h3>
-          </div>
-          <div className="card-body">
-            <div className="kpi-group">
-              <div className="kpi">
-                <div className="kpi-value highlight-info">{isDefesa ? 'Baixo' : 'Alto'}</div>
-                <div className="kpi-label">Risco de Inversão do Ônus</div>
-              </div>
-              <div className="kpi">
-                <div className="kpi-value highlight-info">{isDefesa ? 'Sólida' : 'Frágil'}</div>
-                <div className="kpi-label">Prova Documental</div>
-              </div>
-            </div>
-
-            <div className="stats-comparison">
-              <div className="compare-item" style={{ flexDirection: 'column', alignItems: 'flex-start', marginTop: '1rem' }}>
-                <span className="compare-label" style={{ marginBottom: '0.5rem' }}>Estratégia Recomendada:</span>
-                <span className="compare-value highlight-success" style={{ fontSize: '1rem', textAlign: 'left', lineHeight: '1.5' }}>
-                  {caseData.suggestion}
-                </span>
-              </div>
-            </div>
-          </div>
+        <div className="dash-macro-cell">
+          <span className="label">Taxa de derrota</span>
+          <span className="value danger">{stats.loss_rate}%</span>
+          <span className="sub"><span className="trend down">▼</span> 18.267 casos</span>
         </div>
+        <div className="dash-macro-cell">
+          <span className="label">Adesão a acordos</span>
+          <span className="value accent">{stats.agreement_rate}%</span>
+          <span className="sub">Apenas 280 acordos realizados</span>
+        </div>
+        <div className="dash-macro-cell">
+          <span className="label">Ticket médio condenação</span>
+          <span className="value">R$ 9.340</span>
+          <span className="sub"><span className="trend down">▼</span> −18% vs baseline</span>
+        </div>
+      </div>
 
-        {/* Painel de Inteligência de Mercado - Base Histórica */}
-        <div className="dashboard-card full-width">
-          <div className="card-header">
-            <h3>Inteligência de Mercado - Base Histórica ({stats.total_cases.toLocaleString()} Processos)</h3>
-          </div>
-          <div className="card-body">
-            <div className="macro-stats-grid">
-              <div className="macro-kpi">
-                <span className="label">Taxa de Êxito (Banco Ganha)</span>
-                <span className="value highlight-success">{stats.success_rate}%</span>
-                <span className="sub">41.733 casos</span>
-              </div>
-              <div className="macro-kpi">
-                <span className="label">Taxa de Derrota (Banco Perde)</span>
-                <span className="value highlight-danger">{stats.loss_rate}%</span>
-                <span className="sub">18.267 casos</span>
-              </div>
-              <div className="macro-kpi">
-                <span className="label">Adesão Atual a Acordos</span>
-                <span className="value highlight-info">{stats.agreement_rate}%</span>
-                <span className="sub">Apenas 280 acordos realizados</span>
-              </div>
-            </div>
-
-            <div className="micro-stats-table">
-              <h4>Detalhamento Granular (Resultados Micro)</h4>
-              <div className="stats-row">
-                {stats.detailed.map((item, idx) => (
-                  <div key={idx} className="stats-bar-group">
-                    <div className="stats-bar-label">{item.label} ({item.value}%)</div>
-                    <div className="stats-bar-outer">
-                      <div 
-                        className={`stats-bar-inner ${item.macro === 'Exito' ? 'success' : item.label === 'Acordo' ? 'info' : 'danger'}`} 
-                        style={{width: `${item.value}%`}}
-                      ></div>
+      {/* Main grid: left = case analysis, right = rail cards */}
+      <div className="dash-grid">
+        {/* Left: caso ativo */}
+        <div className="dash-main-col">
+          {caseData && (
+            <>
+              {/* Comparativo de Cenários */}
+              <div className="rail-card">
+                <div className="rail-card-header">
+                  <Scale size={16} />
+                  <h3>Comparativo de cenários</h3>
+                  <span className="mono-dim">{caseData.number}</span>
+                </div>
+                <div className="rail-card-body">
+                  <div className="dash-kpi-row">
+                    <div className="dash-kpi">
+                      <span className="dash-kpi-value danger">{fmt(askedValue)}</span>
+                      <span className="dash-kpi-label">Valor do pedido (risco)</span>
+                    </div>
+                    <div className="dash-kpi">
+                      <span className="dash-kpi-value success">{fmt(negotiationValue)}</span>
+                      <span className="dash-kpi-label">{isDefesa ? 'Valor sugerido acordo' : 'Teto de negociação'}</span>
                     </div>
                   </div>
+
+                  <div className="dash-comparison-bars">
+                    <div className="dash-bar-outer"><div className="dash-bar-inner danger" style={{ width: '100%' }} /></div>
+                    <div className="dash-bar-outer"><div className="dash-bar-inner success" style={{ width: isDefesa ? '0%' : '30%' }} /></div>
+                  </div>
+
+                  <div className="dash-metrics-list">
+                    <div className="dash-metric-row">
+                      <span className="dash-metric-label">Custas processuais estimadas</span>
+                      <span className="dash-metric-value">{fmt(legalCosts)}</span>
+                    </div>
+                    <div className="dash-metric-row">
+                      <span className="dash-metric-label">Risco total em caso de perda</span>
+                      <span className="dash-metric-value danger">{fmt(riskValue)}</span>
+                    </div>
+                    <div className="dash-metric-row highlight">
+                      <span className="dash-metric-label">
+                        {isDefesa ? 'Economia projetada (defesa)' : 'Economia projetada (acordo)'}
+                      </span>
+                      <span className="dash-metric-value success">
+                        {fmt(isDefesa ? riskValue : riskValue - negotiationValue)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Justificativa IA */}
+              <div className="rail-card">
+                <div className="rail-card-header">
+                  <Bot size={16} />
+                  <h3>Justificativa do agente IA</h3>
+                  <span className="pulse" />
+                </div>
+                <div className="rail-card-body">
+                  <div className="dash-kpi-row">
+                    <div className="dash-kpi">
+                      <span className={`dash-kpi-value ${isDefesa ? 'success' : 'danger'}`}>{isDefesa ? 'Baixo' : 'Alto'}</span>
+                      <span className="dash-kpi-label">Risco inversão do ônus</span>
+                    </div>
+                    <div className="dash-kpi">
+                      <span className={`dash-kpi-value ${isDefesa ? 'success' : 'danger'}`}>{isDefesa ? 'Sólida' : 'Frágil'}</span>
+                      <span className="dash-kpi-label">Prova documental</span>
+                    </div>
+                  </div>
+                  <div className="dash-strategy-box">
+                    <span className="dash-strategy-label">Estratégia recomendada:</span>
+                    <p className="dash-strategy-text">{caseData.suggestion}</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!caseData && (
+            <div className="rail-card">
+              <div className="rail-card-body" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                Selecione um caso na sidebar para ver a análise individual.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: rail cards */}
+        <div className="dash-rail-col">
+          {/* Distribuição */}
+          <div className="rail-card">
+            <div className="rail-card-header">
+              <TrendingUp size={16} />
+              <h3>Resultados · base histórica</h3>
+              <span className="mono-dim">{stats.total_cases?.toLocaleString()} casos</span>
+            </div>
+            <div className="rail-card-body">
+              {stats.detailed.map((s, i) => (
+                <div key={i}>
+                  <div className="dist-row">
+                    <span className="lbl">{s.label}</span>
+                    <span className="val">{s.value}%</span>
+                  </div>
+                  <div className="dist-bar-outer">
+                    <div
+                      className={`dist-bar-inner ${s.macro === 'Exito' ? 'success' : s.label === 'Acordo' ? 'accent' : 'danger'}`}
+                      style={{ width: `${s.value}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Política */}
+          <div className="rail-card">
+            <div className="rail-card-header">
+              <Shield size={16} />
+              <h3>Política de acordos · v2.1</h3>
+            </div>
+            <div className="rail-card-body">
+              <div className="policy-metric">
+                <span className="pm-label">Aderência dos advogados</span>
+                <span className="pm-value good">87%</span>
+              </div>
+              <div className="policy-metric">
+                <span className="pm-label">Acordos fechados (mês)</span>
+                <span className="pm-value">214</span>
+              </div>
+              <div className="policy-metric">
+                <span className="pm-label">Valor médio proposto</span>
+                <span className="pm-value">R$ 6.420</span>
+              </div>
+              <div className="policy-metric">
+                <span className="pm-label">Desvio de política</span>
+                <span className="pm-value bad">12 casos</span>
+              </div>
+              <div className="mini-chart">
+                {[40, 55, 48, 62, 58, 70, 66, 74, 80, 78, 85, 87].map((h, i) => (
+                  <div className="bar" key={i} style={{ height: `${h}%` }} />
                 ))}
               </div>
             </div>
-            
-            <div className="insight-box">
-              <p><strong>Insight Estratégico:</strong> Atualmente, {stats.loss_rate}% dos casos resultam em perda para o banco. Com apenas {stats.agreement_rate}% de acordos, há uma oportunidade massiva de converter os 18 mil casos de "Não Êxito" em acordos controlados, reduzindo o ticket médio de condenação em até 60%.</p>
+          </div>
+
+          {/* Alertas */}
+          <div className="rail-card">
+            <div className="rail-card-header">
+              <Bell size={16} />
+              <h3>Alertas operacionais</h3>
+            </div>
+            <div className="rail-card-body" style={{ paddingTop: 4, paddingBottom: 4 }}>
+              {ALERTS.map((a, i) => (
+                <div className="alert-item" key={i}>
+                  <span className={`alert-dot ${a.level}`} />
+                  <div className="alert-body">
+                    <div className="alert-title">{a.title}</div>
+                    <div className="alert-sub">{a.sub}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Insight box */}
+      <div className="dash-insight-box">
+        <p>
+          <strong>Insight Estratégico:</strong> Atualmente, {stats.loss_rate}% dos casos resultam em perda para o banco.
+          Com apenas {stats.agreement_rate}% de acordos, há uma oportunidade massiva de converter os 18 mil casos
+          de "Não Êxito" em acordos controlados, reduzindo o ticket médio de condenação em até 60%.
+        </p>
       </div>
     </div>
   );

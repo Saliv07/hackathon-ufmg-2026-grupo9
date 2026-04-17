@@ -3,9 +3,11 @@ import { X, Moon, Sun, Cpu, Thermometer } from 'lucide-react';
 import './SettingsModal.css';
 
 const AI_MODELS = [
-  { id: 'gpt-4o', label: 'GPT-4o', desc: 'Mais capaz — recomendado' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', desc: 'Mais rápido e econômico' },
-  { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', desc: 'Legado — resposta básica' },
+  { id: 'gpt-4.1', label: 'GPT-4.1', desc: '1M tokens — mais capaz, ideal para casos complexos', badge: '1M' },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', desc: '1M tokens — rápido e inteligente', badge: '1M' },
+  { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', desc: '1M tokens — ultra-rápido e econômico', badge: '1M' },
+  { id: 'gpt-4o', label: 'GPT-4o', desc: '128K tokens — multimodal robusto' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', desc: '128K tokens — rápido e econômico' },
 ];
 
 function SettingsModal({ settings, onSave, onClose }) {
@@ -38,7 +40,10 @@ function SettingsModal({ settings, onSave, onClose }) {
                 className={`model-option ${local.aiModel === m.id ? 'selected' : ''}`}
                 onClick={() => setLocal(prev => ({ ...prev, aiModel: m.id }))}
               >
-                <div className="model-name">{m.label}</div>
+              <div className="model-name">
+                  {m.label}
+                  {m.badge && <span className="model-context-badge">{m.badge}</span>}
+                </div>
                 <div className="model-desc">{m.desc}</div>
               </div>
             ))}

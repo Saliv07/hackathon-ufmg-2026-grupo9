@@ -8,11 +8,13 @@
 }
 
 .sidebar-header {
-  padding: 16px;
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .sidebar-header h3 {

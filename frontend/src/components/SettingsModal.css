@@ -104,6 +104,19 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-context-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #000;
+  background: var(--accent-color);
+  border-radius: 4px;
+  padding: 1px 6px;
+  letter-spacing: 0.3px;
 }
 
 .model-desc {

@@ -20,7 +20,7 @@ client = OpenAI(api_key=api_key)
 
 STATS = calculate_macro_stats(RAW_STATS)
 
-ALLOWED_MODELS = {'gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'}
+ALLOWED_MODELS = {'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'}
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -77,6 +77,86 @@ def serve_document(case_id, doc_id):
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     return jsonify(STATS)
+
+
+# ── Historical Base ────────────────────────────────────────────────────────────
+
+# Cache: load once at startup
+_HISTORICAL_HEADERS = None
+_HISTORICAL_ROWS = []
+
+def _load_historical():
+    global _HISTORICAL_HEADERS, _HISTORICAL_ROWS
+    try:
+        import openpyxl
+        xlsx_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "Docs Hackkaton", "drive-dowload", "Hackaton_Enter_Base_Candidatos.xlsx"
+        )
+        wb = openpyxl.load_workbook(xlsx_path, read_only=True)
+        ws = wb["Resultados dos processos"]
+        rows = []
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i == 0:
+                _HISTORICAL_HEADERS = [str(c) for c in row]
+                continue
+            rows.append({_HISTORICAL_HEADERS[j]: (v if v is not None else "") for j, v in enumerate(row)})
+        wb.close()
+        _HISTORICAL_ROWS = rows
+        print(f"DEBUG: Historical base loaded: {len(rows)} rows")
+    except Exception as e:
+        print(f"WARNING: Could not load historical base: {e}")
+
+_load_historical()
+
+@app.route('/api/historical', methods=['GET'])
+def get_historical():
+    """Serve paginated rows from cached Excel data."""
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
+    search = request.args.get('search', '').strip().lower()
+    result_filter = request.args.get('result', '').strip()
+    sort_by = request.args.get('sort_by', '')
+    order = request.args.get('order', 'asc') # 'asc' ou 'desc'
+
+    filtered = _HISTORICAL_ROWS
+    if search:
+        filtered = [r for r in filtered
+                    if search in str(r.get("Número do processo", "")).lower()
+                    or search in str(r.get("Assunto", "")).lower()
+                    or search in str(r.get("UF", "")).lower()]
+    if result_filter:
+        # Normaliza o filtro para facilitar a comparação (ex: 'Exito' ou 'Êxito' -> 'exito')
+        f = result_filter.lower().replace('ê', 'e')
+        filtered = [r for r in filtered 
+                    if str(r.get("Resultado macro", "")).lower().replace('ê', 'e') == f]
+
+    # Ordenação
+    if sort_by in _HISTORICAL_HEADERS:
+        def sort_key(row):
+            val = row.get(sort_by, "")
+            # Tenta converter para número se a coluna for de valores financeiros
+            if sort_by in ["Valor da causa", "Valor da condenação/indenização"]:
+                try:
+                    return float(val) if val != "" else 0.0
+                except:
+                    return 0.0
+            return str(val).lower()
+
+        filtered = sorted(filtered, key=sort_key, reverse=(order == 'desc'))
+
+    total = len(filtered)
+    start = (page - 1) * per_page
+    page_rows = filtered[start:start + per_page]
+
+    return jsonify({
+        "headers": _HISTORICAL_HEADERS,
+        "rows": page_rows,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page,
+    })
 
 
 # ── AI Analysis ────────────────────────────────────────────────────────────────

@@ -36,28 +36,31 @@
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .doc-type-badge {
-  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(255, 174, 53, 0.12);
-  border: 1px solid rgba(255, 174, 53, 0.28);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 174, 53, 0.08);
+  border: 1px solid rgba(255, 174, 53, 0.2);
   color: var(--accent-color);
   flex-shrink: 0;
 }
 
 .doc-name-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  min-width: 80px;
 }
 
 .toolbar-btn {
