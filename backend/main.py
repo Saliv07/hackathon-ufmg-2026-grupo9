@@ -94,32 +94,54 @@ def analyze_case():
     if model not in ALLOWED_MODELS:
         model = 'gpt-4o'
 
+    # Monta contexto dos documentos abertos no viewer
     docs_context = ""
     if open_documents:
-        docs_context = "\n\nDocumentos Abertos no Visualizador:\n"
+        docs_context = "\n\n## Documentos Abertos no Visualizador\n"
         for doc in open_documents:
             title = doc.get('title') or 'Documento'
             doc_type = doc.get('type', '')
-            content = doc.get('content', '')
-            docs_context += f"--- {title} ({doc_type}) ---\n{content}\n\n"
+            content = doc.get('content', '') or '(sem conteúdo extraído)'
+            docs_context += f"\n### {title} ({doc_type})\n{content}\n"
+
+    # Monta contexto do dashboard (base histórica)
+    stats_context = (
+        "\n\n## Base Histórica — Banco UFMG (60.000 processos)\n"
+        f"- Taxa de Êxito do banco: **{STATS['success_rate']}%** "
+        f"(Improcedência + Extinção = banco ganha)\n"
+        f"- Taxa de Não Êxito: **{STATS['loss_rate']}%** "
+        f"(Parcial procedência + Procedência = banco perde)\n"
+        f"- Acordos realizados até hoje: **{STATS['agreement_rate']}%** "
+        f"(apenas 280 de 60.000 casos)\n"
+        "- Detalhamento micro: "
+        + ", ".join(f"{d['label']} {d['value']}%" for d in STATS['detailed'])
+        + "\n- **Insight**: há 18.267 casos de não êxito que poderiam ter sido acordados "
+        "com valor controlado, potencialmente reduzindo o ticket médio de condenação em ~60%."
+    )
+
+    system_prompt = (
+        "Você é um Agente Jurídico especialista em política de acordos para o Banco UFMG. "
+        "Sua função é analisar processos de não reconhecimento de contratação de empréstimo consignado "
+        "e recomendar ACORDO ou DEFESA com base nos documentos e na política do banco.\n\n"
+        "Use os dados da Base Histórica para embasar probabilidades e estimativas financeiras. "
+        "Use os Documentos Abertos como fonte primária para analisar o caso específico. "
+        "Se o usuário citar um trecho entre aspas (precedido por '>'), analise especificamente aquele trecho. "
+        "Seja objetivo, claro e fundamente suas conclusões nos fatos disponíveis."
+    )
+
+    user_content = (
+        f"## Dados do Processo\n{case_context}"
+        f"{docs_context}"
+        f"{stats_context}"
+        f"\n\n## Pergunta do Advogado\n{user_message}"
+    )
 
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Você é um Agente Jurídico especialista em política de acordos para o Banco UFMG. "
-                        "Analise o caso com base nos subsídios e nos documentos abertos fornecidos. "
-                        "Se o usuário mencionar um documento, use as informações do contexto de 'Documentos Abertos'. "
-                        "Seja objetivo, claro e fundamente suas análises nos documentos disponíveis."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": f"Contexto do Caso: {case_context}{docs_context}\n\nPergunta do Advogado: {user_message}",
-                },
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
             ],
             temperature=temperature,
         )

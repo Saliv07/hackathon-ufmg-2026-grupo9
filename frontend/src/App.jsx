@@ -36,6 +36,7 @@ function App() {
   const [chatHistories, setChatHistories] = useState({});
   const [showSettings, setShowSettings] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
+  const [pendingQuote, setPendingQuote] = useState('');
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -201,6 +202,7 @@ function App() {
             <CenterViewer
               document={selectedDocument}
               onContentChange={handleDocumentContentChange}
+              onQuoteText={(text) => setPendingQuote(text)}
             />
           </div>
 
@@ -223,6 +225,8 @@ function App() {
               messages={chatHistories[selectedCase?.id] || []}
               onUpdateMessages={(msgs) => setChatHistories(prev => ({ ...prev, [selectedCase.id]: msgs }))}
               onAgentReply={() => setHasNewNotification(true)}
+              pendingQuote={pendingQuote}
+              onQuoteClear={() => setPendingQuote('')}
             />
           </div>
         </div>

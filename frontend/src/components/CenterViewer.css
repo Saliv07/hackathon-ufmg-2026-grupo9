@@ -75,6 +75,44 @@
   background: rgba(255, 174, 53, 0.1);
 }
 
+.toolbar-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  font-style: italic;
+  margin-left: auto;
+}
+
+/* ── Selection tooltip ───────────────────────────────────────────────────── */
+
+.selection-tooltip {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 8px));
+  z-index: 500;
+  animation: tooltipPop 0.12s ease;
+}
+
+@keyframes tooltipPop {
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 4px)) scale(0.95); }
+  to   { opacity: 1; transform: translate(-50%, calc(-100% - 8px)) scale(1); }
+}
+
+.selection-tooltip button {
+  background: var(--accent-color);
+  color: #000;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  transition: opacity 0.15s;
+}
+
+.selection-tooltip button:hover {
+  opacity: 0.88;
+}
+
 /* ── PDF viewer ───────────────────────────────────────────────────────────── */
 
 .center-viewer.pdf-viewer {

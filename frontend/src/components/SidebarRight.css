@@ -178,6 +178,52 @@
   text-overflow: ellipsis;
 }
 
+/* Quote preview */
+.quote-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: rgba(255, 174, 53, 0.08);
+  border-top: 1px solid rgba(255, 174, 53, 0.2);
+  border-left: 3px solid var(--accent-color);
+  flex-shrink: 0;
+}
+
+.quote-preview-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--accent-color);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quote-dismiss {
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.quote-dismiss:hover { color: var(--text-main); }
+
+/* Blockquote inside messages */
+.chat-blockquote {
+  border-left: 3px solid var(--accent-color);
+  padding: 4px 10px;
+  margin: 4px 0 8px 0;
+  color: var(--accent-color);
+  font-style: italic;
+  font-size: 12px;
+  background: rgba(255, 174, 53, 0.06);
+  border-radius: 0 4px 4px 0;
+}
+
 /* Input area */
 .chat-input-area {
   padding: 12px 14px;
