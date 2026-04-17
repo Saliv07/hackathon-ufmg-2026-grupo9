@@ -1,0 +1,123 @@
+.case-summary-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  background-color: var(--bg-primary);
+  padding: 2rem;
+  width: 100%;
+}
+
+.slide-in {
+  animation: slideInLeft 0.4s ease forwards;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.summary-content {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 700px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+.ai-icon {
+  color: var(--accent-color);
+}
+
+.ai-header h2 {
+  color: var(--text-primary);
+  margin: 0;
+  font-weight: 400;
+}
+
+.summary-card h3 {
+  color: var(--text-primary);
+  margin: 0 0 0.2rem 0;
+}
+
+.case-num {
+  color: var(--text-secondary);
+  font-family: monospace;
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+.summary-section {
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  font-size: 1.05rem;
+}
+
+.ai-suggestion {
+  background: rgba(37, 99, 235, 0.1);
+  border-left: 4px solid var(--accent-color);
+  padding: 1.5rem;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 2rem;
+}
+
+.suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--accent-color);
+  margin-bottom: 1rem;
+}
+
+.suggestion-header h4 {
+  margin: 0;
+}
+
+.recommendation {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-top: 0;
+}
+
+.proceed-button {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  width: 100%;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.proceed-button:hover {
+  background-color: #3b82f6;
+}
+
+.proceed-button:active {
+  transform: scale(0.98);
+}
