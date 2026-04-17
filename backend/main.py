@@ -1,10 +1,19 @@
+import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from dotenv import load_dotenv
+from openai import OpenAI
 from data import CASES, RAW_STATS
 from services.stats_service import calculate_macro_stats
 
+# Carrega variáveis de ambiente do arquivo .env
+load_dotenv(dotenv_path="../.env")
+
 app = Flask(__name__)
 CORS(app)
+
+# Configuração do Cliente OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Processa as estatísticas iniciais
 STATS = calculate_macro_stats(RAW_STATS)
@@ -27,11 +36,31 @@ def get_stats():
 @app.route('/api/analyze', methods=['POST'])
 def analyze_case():
     data = request.json
-    return jsonify({
-        "status": "success",
-        "analysis": "Análise realizada via Python Backend.",
-        "ai_recommendation": "Sugerido manter a estratégia atual baseada nos subsídios fornecidos."
-    })
+    user_message = data.get('message', '')
+    case_context = data.get('case_context', '')
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5",  # Definido como gpt-5 conforme solicitado
+            messages=[
+                {"role": "system", "content": "Você é um Agente Jurídico especialista em política de acordos para o Banco UFMG. Analise o caso com base nos subsídios e forneça uma recomendação técnica clara."},
+                {"role": "user", "content": f"Contexto do Caso: {case_context}\n\nPergunta do Advogado: {user_message}"}
+            ],
+            temperature=0.3
+        )
+        
+        analysis_content = response.choices[0].message.content
+        
+        return jsonify({
+            "status": "success",
+            "analysis": analysis_content,
+            "ai_recommendation": "Recomendação gerada dinamicamente pelo GPT-5."
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

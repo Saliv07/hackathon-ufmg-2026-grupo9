@@ -31,21 +31,43 @@ function SidebarRight({ caseData, successChance }) {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
     
-    const newMessages = [...messages, { role: 'user', content: input, type: 'text' }];
+    const userMsg = input;
+    const newMessages = [...messages, { role: 'user', content: userMsg, type: 'text' }];
     setMessages(newMessages);
     setInput('');
     
-    // Simulate agent response
-    setTimeout(() => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${apiUrl}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMsg,
+          case_context: JSON.stringify(caseData)
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setMessages([...newMessages, { 
+          role: 'agent', 
+          content: data.analysis, 
+          type: 'text' 
+        }]);
+      } else {
+        throw new Error(data.message || 'Falha na análise');
+      }
+    } catch (error) {
       setMessages([...newMessages, { 
         role: 'agent', 
-        content: `Entendido. Analisando sua ponderação com base na Súmula 479 do STJ e nos resultados da comarca de ${caseData.number.split('.')[4] === '10' ? 'São Luís' : 'Manaus'}, mantenho a recomendação técnica. Deseja que eu elabore uma minuta baseada nesta estratégia?`, 
-        type: 'text' 
+        content: `Erro ao contatar o servidor: ${error.message}`, 
+        type: 'error' 
       }]);
-    }, 1000);
+    }
   };
 
   return (
