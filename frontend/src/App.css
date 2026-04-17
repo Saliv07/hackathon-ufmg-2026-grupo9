@@ -36,7 +36,7 @@
   background-color: var(--accent-color);
 }
 
-.resizable-viewer {
+.resizable-viewer, .resizable-docs {
   display: flex;
   flex-direction: column;
   overflow: hidden;

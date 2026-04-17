@@ -1,12 +1,14 @@
 .top-bar {
   height: 56px;
-  background-color: #050505;
+  background-color: var(--bg-sidebar);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px 0 0;
   z-index: 100;
+  flex-shrink: 0;
+  transition: background-color 0.2s;
 }
 
 .top-bar-left {
@@ -20,36 +22,34 @@
   height: 100%;
   display: flex;
   align-items: center;
-  padding-left: 1.2rem;
-  background-color: #050505;
+  justify-content: center;
+  background-color: var(--bg-sidebar);
   cursor: pointer;
-  border-right: 1px solid #1a1a1a;
+  border-right: 1px solid var(--border-color);
+  transition: background-color 0.2s;
 }
 
 .fixed-logo {
   height: 22px;
   filter: invert(1);
+  transition: filter 0.2s;
 }
 
-.toggle-sidebar-btn-top {
-  margin-left: 1rem;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.toggle-sidebar-btn-top:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+[data-theme="light"] .fixed-logo {
+  filter: none;
 }
 
 .top-bar-divider {
   width: 1px;
   height: 24px;
-  background: #2d2d2d;
+  background: var(--border-color);
   margin: 0 1.5rem;
+}
+
+.view-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .top-bar-center {
@@ -81,6 +81,10 @@
   overflow: hidden;
 }
 
+[data-theme="light"] .meter-bg {
+  background: #ddd;
+}
+
 .meter-fill {
   height: 100%;
   transition: width 0.5s ease;
@@ -93,12 +97,13 @@
 .meter-value {
   font-size: 0.9rem;
   font-weight: bold;
-  color: #fff;
+  color: var(--text-main);
 }
 
 .top-bar-right {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  align-items: center;
 }
 
 .nav-icon-btn {
@@ -106,9 +111,39 @@
   color: var(--text-muted);
   border-radius: 6px;
   transition: all 0.2s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-icon-btn:hover {
-  background: #2d2d2d;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+[data-theme="light"] .nav-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Notification dot */
+.notification-btn {
+  position: relative;
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-sidebar);
+  animation: notifPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes notifPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 174, 53, 0.6); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 174, 53, 0); }
 }

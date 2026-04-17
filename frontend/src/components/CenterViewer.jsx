@@ -1,6 +1,6 @@
 import './CenterViewer.css';
 
-function CenterViewer({ document }) {
+function CenterViewer({ document, onContentChange }) {
   if (!document) {
     return (
       <div className="center-viewer empty-state">
@@ -10,30 +10,88 @@ function CenterViewer({ document }) {
     );
   }
 
-  return (
-    <div className="center-viewer">
-      <div className="viewer-header">
-        <div className="doc-info">
-          <span className="doc-type-badge">{document.type}</span>
-          <span className="doc-name">{document.title || document.name}</span>
+  // Nota editável
+  if (document.type === 'Nota') {
+    return (
+      <div className="center-viewer note-viewer">
+        <div className="note-header">
+          <span className="note-icon">✏️</span>
+          <span className="note-title">{document.name}</span>
+          <span className="note-hint">As anotações ficam visíveis ao agente como contexto</span>
         </div>
-        <div className="viewer-actions">
-          <button className="action-btn" title="Download">⬇️</button>
-          <button className="action-btn" title="Expandir">⛶</button>
-        </div>
+        <textarea
+          className="note-textarea"
+          value={document.content}
+          onChange={e => onContentChange?.(document.id, e.target.value)}
+          placeholder="Digite suas anotações aqui...&#10;&#10;Este documento será incluído como contexto no chat do Agente Jurídico."
+          spellCheck={false}
+          autoFocus
+        />
       </div>
-      <div className="viewer-content">
-        <div className="document-page">
-          <h2>{document.title || document.name}</h2>
-          <div className="document-text">
-            {document.content}
-            <br/><br/>
-            <div className="document-body">
-              {/* Conteúdo real do documento simulado */}
-              <p>Considerando o teor do processo nº {document.caseNumber || '0801234-56.2024.8.10.0001'}, este documento de {document.type} apresenta os fatos narrados e as evidências colhidas.</p>
-              <p>A análise técnica do Agente Jurídico IA identificou pontos de convergência com a base histórica do banco, permitindo uma decisão fundamentada em dados.</p>
-            </div>
+    );
+  }
+
+  // PDF ou arquivo com URL — renderiza inline
+  if (document.fileUrl) {
+    const isPdf = document.name?.toLowerCase().endsWith('.pdf') || document.type !== 'Nota';
+    const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(document.name || '');
+
+    if (isImage) {
+      return (
+        <div className="center-viewer image-viewer">
+          <div className="viewer-toolbar">
+            <span className="doc-type-badge">{document.type}</span>
+            <span className="doc-name-label">{document.name}</span>
           </div>
+          <div className="image-container">
+            <img src={document.fileUrl} alt={document.name} className="doc-image" />
+          </div>
+        </div>
+      );
+    }
+
+    if (isPdf) {
+      return (
+        <div className="center-viewer pdf-viewer">
+          <div className="viewer-toolbar">
+            <span className="doc-type-badge">{document.type}</span>
+            <span className="doc-name-label">{document.name}</span>
+            <a
+              href={document.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="toolbar-btn"
+              title="Abrir em nova aba"
+            >
+              ↗ Abrir
+            </a>
+          </div>
+          <iframe
+            src={document.fileUrl}
+            title={document.name}
+            className="pdf-iframe"
+            type="application/pdf"
+          />
+        </div>
+      );
+    }
+  }
+
+  // Fallback: exibe o conteúdo de texto
+  return (
+    <div className="center-viewer text-viewer">
+      <div className="viewer-toolbar">
+        <span className="doc-type-badge">{document.type}</span>
+        <span className="doc-name-label">{document.name}</span>
+      </div>
+      <div className="text-content">
+        <div className="text-body">
+          {document.content
+            ? document.content.split('\n').map((line, i) => (
+                <p key={i}>{line || <br />}</p>
+              ))
+            : <p className="no-content">Conteúdo não disponível.</p>
+          }
         </div>
       </div>
     </div>

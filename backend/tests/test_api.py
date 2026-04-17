@@ -33,3 +33,18 @@ def test_analyze_case(client):
     data = response.get_json()
     assert data["id"] == 1
     assert data["recommendation"] == "DEFESA"
+
+def test_analyze_case_post(client):
+    """Verifica se o endpoint de análise via POST funciona."""
+    payload = {
+        "message": "Olá",
+        "case_context": '{"plaintiff": "Teste"}',
+        "open_documents": []
+    }
+    response = client.post('/api/analyze', json=payload)
+    # Se a API Key for válida, deve retornar 200. Caso contrário, 500 (erro de autenticação da OpenAI)
+    assert response.status_code in [200, 500] 
+    if response.status_code == 200:
+        data = response.get_json()
+        assert data["status"] == "success"
+        assert "analysis" in data

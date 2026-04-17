@@ -1,7 +1,7 @@
 import { MessageSquare, Plus, LayoutDashboard, Database, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import './GlobalSidebar.css';
 
-function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectCase, isCollapsed, onToggle }) {
+function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectCase, isCollapsed, onToggle, onOpenSettings }) {
   return (
     <div className={`global-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-control">
@@ -9,6 +9,7 @@ function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectC
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
+
       <button className="new-chat-btn" onClick={() => onNavigate('case-selection')}>
         <Plus size={16} />
         {!isCollapsed && <span>Novo Processo</span>}
@@ -18,12 +19,10 @@ function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectC
         {!isCollapsed && <div className="section-title">Histórico Recente</div>}
         <div className="history-list">
           {cases.map((c) => (
-            <div 
-              key={c.id} 
+            <div
+              key={c.id}
               className={`history-item ${currentView === 'workspace' && selectedCase?.id === c.id ? 'active' : ''}`}
-              onClick={() => {
-                onSelectCase(c);
-              }}
+              onClick={() => onSelectCase(c)}
               title={isCollapsed ? c.plaintiff : ''}
             >
               <MessageSquare size={18} />
@@ -34,7 +33,7 @@ function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectC
       </div>
 
       <div className="sidebar-footer">
-        <div 
+        <div
           className={`footer-item ${currentView === 'dashboard' ? 'active' : ''}`}
           onClick={() => onNavigate('dashboard')}
           title="Estatísticas Macro"
@@ -46,7 +45,7 @@ function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectC
           <Database size={20} />
           {!isCollapsed && <span>Base Histórica</span>}
         </div>
-        <div className="footer-item" title="Configurações">
+        <div className="footer-item" title="Configurações" onClick={onOpenSettings}>
           <Settings size={20} />
           {!isCollapsed && <span>Configurações</span>}
         </div>
