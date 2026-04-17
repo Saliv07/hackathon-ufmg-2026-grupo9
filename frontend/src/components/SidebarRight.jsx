@@ -52,9 +52,6 @@ function SidebarRight({ caseData, successChance }) {
     <div className="sidebar-right">
       <div className="agent-header">
         <div className="agent-title">Agente Jurídico IA</div>
-        <div className="agent-status">
-          <span className="status-dot"></span> Online
-        </div>
       </div>
       
       <div className="chat-container">

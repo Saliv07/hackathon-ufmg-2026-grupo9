@@ -19,6 +19,10 @@ function App() {
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDocuments, setCaseDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [chatWidth, setChatWidth] = useState(400); // Largura inicial do chat
+  const [viewerWidth, setViewerWidth] = useState(600); // Largura inicial do visualizador
+
 
   useEffect(() => {
     fetch(`${API_URL}/cases`)
@@ -65,8 +69,37 @@ function App() {
             selectedDocument={selectedDocument}
             onSelectDocument={setSelectedDocument} 
           />
-          <CenterViewer document={selectedDocument} />
-          <SidebarRight caseData={selectedCase} successChance={successChance} />
+          <div 
+            className="resizable-viewer" 
+            style={{ width: viewerWidth, minWidth: '300px' }}
+          >
+            <CenterViewer document={selectedDocument} />
+          </div>
+          
+          <div 
+            className="resizer-bar" 
+            onMouseDown={(e) => {
+              const startX = e.clientX;
+              const startWidth = viewerWidth;
+              const onMouseMove = (moveEvent) => {
+                const delta = moveEvent.clientX - startX;
+                setViewerWidth(startWidth + delta);
+              };
+              const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+              };
+              document.addEventListener('mousemove', onMouseMove);
+              document.addEventListener('mouseup', onMouseUp);
+            }}
+          />
+
+          <div 
+            className="resizable-chat" 
+            style={{ flex: 1, minWidth: '300px' }}
+          >
+            <SidebarRight caseData={selectedCase} successChance={successChance} />
+          </div>
         </div>
       );
     }
@@ -79,6 +112,8 @@ function App() {
         currentView={currentView} 
         onNavigate={setCurrentView}
         onSelectCase={handleSelectCase}
+        isCollapsed={isSidebarCollapsed}
+        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
       <div className="view-wrapper">
         <TopBar 

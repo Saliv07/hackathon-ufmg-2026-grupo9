@@ -1,22 +1,26 @@
-import React from 'react';
-import { MessageSquare, Plus, LayoutDashboard, Database, Settings, LogOut } from 'lucide-react';
+import { MessageSquare, Plus, LayoutDashboard, Database, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import './GlobalSidebar.css';
 
-function GlobalSidebar({ cases, currentView, onNavigate, onSelectCase }) {
+function GlobalSidebar({ cases, currentView, onNavigate, onSelectCase, isCollapsed, onToggle }) {
   return (
-    <div className="global-sidebar">
-      <div className="sidebar-brand" onClick={() => onNavigate('case-selection')}>
-        <img 
-          src="https://cdn.prod.website-files.com/67b30e3c33bea6276dc0a7b6/68ffc135ff24aa4cfb5cd0a7_enter_black.svg" 
-          alt="Enter.ai Logo" 
-          className="sidebar-logo"
-          style={{ filter: 'invert(1)' }} // Invert to white for dark mode
-        />
+    <div className={`global-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <div className="sidebar-header">
+        <div className="sidebar-brand" onClick={() => onNavigate('case-selection')}>
+          <img 
+            src="https://cdn.prod.website-files.com/67b30e3c33bea6276dc0a7b6/68ffc135ff24aa4cfb5cd0a7_enter_black.svg" 
+            alt="Enter.ai Logo" 
+            className="sidebar-logo"
+            style={{ filter: 'invert(1)' }}
+          />
+        </div>
+        <button className="toggle-sidebar-btn" onClick={onToggle}>
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
       </div>
 
       <button className="new-chat-btn" onClick={() => onNavigate('case-selection')}>
         <Plus size={16} />
-        <span>Novo Processo</span>
+        {!isCollapsed && <span>Novo Processo</span>}
       </button>
 
       <div className="sidebar-section">
@@ -41,26 +45,33 @@ function GlobalSidebar({ cases, currentView, onNavigate, onSelectCase }) {
         <div 
           className={`footer-item ${currentView === 'dashboard' ? 'active' : ''}`}
           onClick={() => onNavigate('dashboard')}
+          title="Estatísticas Macro"
         >
           <LayoutDashboard size={18} />
-          <span>Estatísticas Macro</span>
+          {!isCollapsed && <span>Estatísticas Macro</span>}
         </div>
-        <div className="footer-item">
+        <div className="footer-item" title="Base Histórica">
           <Database size={18} />
-          <span>Base Histórica</span>
+          {!isCollapsed && <span>Base Histórica</span>}
         </div>
-        <div className="footer-item">
+        <div className="footer-item" title="Configurações">
           <Settings size={18} />
-          <span>Configurações</span>
+          {!isCollapsed && <span>Configurações</span>}
         </div>
-        <div className="user-info">
-          <div className="avatar">AD</div>
-          <div className="user-details">
-            <div className="user-name">Advogado Silva</div>
-            <div className="user-role">Sócio Senior</div>
+        {!isCollapsed ? (
+          <div className="user-info">
+            <div className="avatar">AD</div>
+            <div className="user-details">
+              <div className="user-name">Advogado Silva</div>
+              <div className="user-role">Sócio Senior</div>
+            </div>
+            <LogOut size={16} className="logout-icon" />
           </div>
-          <LogOut size={16} className="logout-icon" />
-        </div>
+        ) : (
+          <div className="user-info collapsed">
+            <div className="avatar">AD</div>
+          </div>
+        )}
       </div>
     </div>
   );
