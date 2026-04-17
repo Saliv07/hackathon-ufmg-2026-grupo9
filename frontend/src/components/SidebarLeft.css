@@ -83,13 +83,17 @@
   opacity: 0.8;
 }
 
+.doc-info {
+  min-width: 0;          /* permite que o filho flex encolha */
+  flex: 1;
+}
+
 .doc-name {
   font-size: 13px;
   color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
 }
 
 .doc-type {
