@@ -1,39 +1,29 @@
 .global-sidebar {
   width: 260px;
   min-width: 72px;
-  height: 100vh;
+  height: calc(100vh - 56px);
   background-color: #050505;
   display: flex;
   flex-direction: column;
   padding: 1.2rem;
+  padding-top: 0.5rem;
   color: #ececec;
   border-right: 1px solid #1a1a1a;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   flex-shrink: 0;
 }
 
-.global-sidebar.collapsed {
-  width: 72px;
-  padding: 1.2rem 0.8rem;
-}
-
-.sidebar-header {
+.sidebar-control {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  height: 32px;
-  width: 100%;
+  justify-content: flex-start;
+  padding: 0.5rem 0.8rem;
+  margin-bottom: 0.5rem;
 }
 
-.global-sidebar.collapsed .sidebar-header {
-  flex-direction: column;
-  height: auto;
-  gap: 1.2rem;
-  margin-bottom: 1.5rem;
-  align-items: center;
-  justify-content: flex-start;
+.global-sidebar.collapsed .sidebar-control {
+  justify-content: center;
+  padding: 0.5rem 0;
 }
 
 .toggle-sidebar-btn {
@@ -41,11 +31,12 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
 }
 
 .toggle-sidebar-btn:hover {
@@ -53,30 +44,10 @@
   color: white;
 }
 
-.sidebar-brand {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  transition: width 0.3s;
+.global-sidebar.collapsed {
+  width: 68px;
+  padding: 1.2rem 0;
 }
-
-.global-sidebar.collapsed .sidebar-brand {
-  width: 24px;
-  justify-content: center;
-}
-
-.sidebar-logo {
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.global-sidebar.collapsed .sidebar-logo {
-  height: 20px;
-  object-fit: cover;
-  object-position: left;
-}
-
 
 .new-chat-btn {
   display: flex;
@@ -91,6 +62,7 @@
   border-radius: 8px;
   width: 100%;
   text-align: left;
+  margin-top: 1rem;
   margin-bottom: 2rem;
   transition: opacity 0.2s;
 }

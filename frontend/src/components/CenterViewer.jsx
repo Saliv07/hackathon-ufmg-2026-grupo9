@@ -13,8 +13,9 @@ function CenterViewer({ document }) {
   return (
     <div className="center-viewer">
       <div className="viewer-header">
-        <div className="tabs">
-          <div className="tab active">{document.name}</div>
+        <div className="doc-info">
+          <span className="doc-type-badge">{document.type}</span>
+          <span className="doc-name">{document.title || document.name}</span>
         </div>
         <div className="viewer-actions">
           <button className="action-btn" title="Download">⬇️</button>
@@ -23,7 +24,7 @@ function CenterViewer({ document }) {
       </div>
       <div className="viewer-content">
         <div className="document-page">
-          <h2>{document.name}</h2>
+          <h2>{document.title || document.name}</h2>
           <div className="document-text">
             {document.content}
             <br/><br/>

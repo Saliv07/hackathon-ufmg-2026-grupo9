@@ -1,17 +1,55 @@
 .top-bar {
   height: 56px;
-  background-color: var(--bg-dark);
+  background-color: #050505;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 24px 0 0;
+  z-index: 100;
 }
 
-.view-title {
-  font-size: 1rem;
-  font-weight: 500;
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.brand-fixed {
+  width: 260px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-left: 1.2rem;
+  background-color: #050505;
+  cursor: pointer;
+  border-right: 1px solid #1a1a1a;
+}
+
+.fixed-logo {
+  height: 22px;
+  filter: invert(1);
+}
+
+.toggle-sidebar-btn-top {
+  margin-left: 1rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.toggle-sidebar-btn-top:hover {
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
+}
+
+.top-bar-divider {
+  width: 1px;
+  height: 24px;
+  background: #2d2d2d;
+  margin: 0 1.5rem;
 }
 
 .top-bar-center {

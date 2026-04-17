@@ -8,12 +8,14 @@ from services.stats_service import calculate_macro_stats
 
 # Carrega variáveis de ambiente do arquivo .env
 load_dotenv(dotenv_path="../.env")
+api_key = os.getenv("OPENAI_API_KEY")
+print(f"DEBUG: OpenAI API Key loaded: {bool(api_key)}")
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuração do Cliente OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=api_key)
 
 # Processa as estatísticas iniciais
 STATS = calculate_macro_stats(RAW_STATS)
@@ -41,7 +43,7 @@ def analyze_case():
 
     try:
         response = client.chat.completions.create(
-            model="gpt-5",  # Definido como gpt-5 conforme solicitado
+            model="gpt-4o",  # Atualizado para gpt-4o para maior estabilidade
             messages=[
                 {"role": "system", "content": "Você é um Agente Jurídico especialista em política de acordos para o Banco UFMG. Analise o caso com base nos subsídios e forneça uma recomendação técnica clara."},
                 {"role": "user", "content": f"Contexto do Caso: {case_context}\n\nPergunta do Advogado: {user_message}"}
@@ -54,7 +56,7 @@ def analyze_case():
         return jsonify({
             "status": "success",
             "analysis": analysis_content,
-            "ai_recommendation": "Recomendação gerada dinamicamente pelo GPT-5."
+            "ai_recommendation": "Recomendação gerada dinamicamente pelo GPT-4o."
         })
     except Exception as e:
         return jsonify({

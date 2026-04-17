@@ -20,9 +20,10 @@ function App() {
   const [caseDocuments, setCaseDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [chatWidth, setChatWidth] = useState(400); // Largura inicial do chat
-  const [viewerWidth, setViewerWidth] = useState(600); // Largura inicial do visualizador
-
+  const [chatWidth, setChatWidth] = useState(400); 
+  const [viewerWidth, setViewerWidth] = useState(600); 
+  const [openDocuments, setOpenDocuments] = useState([]);
+  const [activeDocumentId, setActiveDocumentId] = useState(null);
 
   useEffect(() => {
     fetch(`${API_URL}/cases`)
@@ -40,9 +41,33 @@ function App() {
   const handleSelectCase = (caseData) => {
     setSelectedCase(caseData);
     setCaseDocuments(caseData.documents);
-    setSelectedDocument(caseData.documents[0]);
+    const firstDoc = caseData.documents[0];
+    setOpenDocuments([firstDoc]);
+    setActiveDocumentId(firstDoc.id);
+    setSelectedDocument(firstDoc);
     setSuccessChance(caseData.recommendation === 'DEFESA' ? 95 : 15);
     setCurrentView('case-summary');
+  };
+
+  const handleSelectDocument = (doc) => {
+    if (!openDocuments.find(d => d.id === doc.id)) {
+      setOpenDocuments([...openDocuments, doc]);
+    }
+    setActiveDocumentId(doc.id);
+    setSelectedDocument(doc);
+  };
+
+  const handleCloseDocument = (docId) => {
+    const newOpenDocs = openDocuments.filter(d => d.id !== docId);
+    setOpenDocuments(newOpenDocs);
+    if (activeDocumentId === docId && newOpenDocs.length > 0) {
+      const lastDoc = newOpenDocs[newOpenDocs.length - 1];
+      setActiveDocumentId(lastDoc.id);
+      setSelectedDocument(lastDoc);
+    } else if (newOpenDocs.length === 0) {
+      setActiveDocumentId(null);
+      setSelectedDocument(null);
+    }
   };
 
   const handleProceedToWorkspace = () => {
@@ -67,12 +92,34 @@ function App() {
           <SidebarLeft 
             documents={caseDocuments} 
             selectedDocument={selectedDocument}
-            onSelectDocument={setSelectedDocument} 
+            onSelectDocument={handleSelectDocument} 
           />
           <div 
             className="resizable-viewer" 
             style={{ width: viewerWidth, minWidth: '300px' }}
           >
+            {/* Barra de Abas de Documentos */}
+            <div className="document-tabs">
+              {openDocuments.map(doc => (
+                <div 
+                  key={doc.id} 
+                  className={`doc-tab ${activeDocumentId === doc.id ? 'active' : ''}`}
+                  onClick={() => handleSelectDocument(doc)}
+                >
+                  <span className="tab-title">{doc.title}</span>
+                  <button 
+                    className="close-tab" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCloseDocument(doc.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+
             <CenterViewer document={selectedDocument} />
           </div>
           
@@ -106,22 +153,25 @@ function App() {
   };
 
   return (
-    <div className="layout-container chatgpt-style">
-      <GlobalSidebar 
-        cases={cases} 
-        currentView={currentView} 
-        onNavigate={setCurrentView}
-        onSelectCase={handleSelectCase}
-        isCollapsed={isSidebarCollapsed}
-        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+    <div className="app-shell">
+      <TopBar 
+        successChance={successChance} 
+        currentView={currentView}
+        onNavigate={(view) => setCurrentView(view)}
       />
-      <div className="view-wrapper">
-        <TopBar 
-          successChance={successChance} 
-          currentView={currentView}
-          onNavigate={(view) => setCurrentView(view)}
+      <div className="main-layout">
+        <GlobalSidebar 
+          cases={cases} 
+          currentView={currentView} 
+          selectedCase={selectedCase}
+          onNavigate={setCurrentView}
+          onSelectCase={handleSelectCase}
+          isCollapsed={isSidebarCollapsed}
+          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
-        {renderView()}
+        <div className="view-container">
+          {renderView()}
+        </div>
       </div>
     </div>
   );

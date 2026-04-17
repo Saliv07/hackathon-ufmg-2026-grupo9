@@ -15,6 +15,14 @@ function TopBar({ successChance, currentView, onNavigate }) {
   return (
     <div className="top-bar">
       <div className="top-bar-left">
+        <div className="brand-fixed" onClick={() => onNavigate('case-selection')}>
+          <img 
+            src="https://cdn.prod.website-files.com/67b30e3c33bea6276dc0a7b6/68ffc135ff24aa4cfb5cd0a7_enter_black.svg" 
+            alt="Enter.ai Logo" 
+            className="fixed-logo"
+          />
+        </div>
+        <div className="top-bar-divider" />
         <span className="view-title">{getTitle()}</span>
       </div>
       

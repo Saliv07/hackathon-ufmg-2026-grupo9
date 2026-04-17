@@ -19,31 +19,36 @@
 }
 
 .viewer-header {
-  height: 36px;
-  background-color: var(--bg-panel);
+  height: 48px;
+  background-color: #0d0d0d;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-end;
+  padding: 0 16px;
   border-bottom: 1px solid var(--border-color);
 }
 
-.tabs {
+.doc-info {
   display: flex;
-  height: 100%;
+  align-items: center;
+  gap: 12px;
 }
 
-.tab {
-  padding: 8px 16px;
-  background-color: var(--bg-dark);
-  color: var(--text-main);
+.doc-type-badge {
+  background-color: #1a1a1a;
+  color: var(--accent-color);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 174, 53, 0.3);
+}
+
+.doc-name {
+  color: white;
   font-size: 13px;
-  border-right: 1px solid var(--border-color);
-  border-top: 1px solid transparent;
-  cursor: pointer;
-}
-
-.tab.active {
-  border-top: 1px solid var(--accent-color);
+  font-weight: 500;
 }
 
 .viewer-actions {
