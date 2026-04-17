@@ -40,7 +40,7 @@ function App() {
   const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('juridico-ai-settings');
-      return saved ? JSON.parse(saved) : { aiModel: 'gpt-4o', darkMode: true };
+      return saved ? JSON.parse(saved) : { aiModel: 'gpt-4o', darkMode: true, temperature: 0.3 };
     } catch {
       return { aiModel: 'gpt-4o', darkMode: true };
     }
@@ -219,6 +219,7 @@ function App() {
               successChance={successChance}
               openDocuments={openDocuments}
               aiModel={settings.aiModel}
+              temperature={settings.temperature ?? 0.3}
               messages={chatHistories[selectedCase?.id] || []}
               onUpdateMessages={(msgs) => setChatHistories(prev => ({ ...prev, [selectedCase.id]: msgs }))}
               onAgentReply={() => setHasNewNotification(true)}

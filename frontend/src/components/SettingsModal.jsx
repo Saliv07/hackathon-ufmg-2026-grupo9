@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Moon, Sun, Cpu } from 'lucide-react';
+import { X, Moon, Sun, Cpu, Thermometer } from 'lucide-react';
 import './SettingsModal.css';
 
 const AI_MODELS = [
@@ -42,6 +42,35 @@ function SettingsModal({ settings, onSave, onClose }) {
                 <div className="model-desc">{m.desc}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="modal-section">
+          <div className="modal-section-label">
+            <Thermometer size={14} />
+            <span>Temperatura do Modelo</span>
+          </div>
+          <div className="temperature-control">
+            <div className="temperature-labels">
+              <span>Preciso</span>
+              <span className="temperature-value">{local.temperature?.toFixed(1) ?? '0.3'}</span>
+              <span>Criativo</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={local.temperature ?? 0.3}
+              onChange={e => setLocal(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+              className="temperature-slider"
+            />
+            <div className="temperature-desc">
+              {(local.temperature ?? 0.3) <= 0.2 && 'Respostas muito precisas e determinísticas'}
+              {(local.temperature ?? 0.3) > 0.2 && (local.temperature ?? 0.3) <= 0.5 && 'Equilibrado — recomendado para análise jurídica'}
+              {(local.temperature ?? 0.3) > 0.5 && (local.temperature ?? 0.3) <= 0.8 && 'Mais variado — bom para rascunhos e sugestões'}
+              {(local.temperature ?? 0.3) > 0.8 && 'Alta criatividade — menos previsível'}
+            </div>
           </div>
         </div>
 

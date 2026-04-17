@@ -88,6 +88,8 @@ def analyze_case():
     case_context = data.get('case_context', '')
     open_documents = data.get('open_documents', [])
     model = data.get('model', 'gpt-4o')
+    temperature = float(data.get('temperature', 0.3))
+    temperature = max(0.0, min(1.0, temperature))
 
     if model not in ALLOWED_MODELS:
         model = 'gpt-4o'
@@ -119,7 +121,7 @@ def analyze_case():
                     "content": f"Contexto do Caso: {case_context}{docs_context}\n\nPergunta do Advogado: {user_message}",
                 },
             ],
-            temperature=0.3,
+            temperature=temperature,
         )
 
         analysis_content = response.choices[0].message.content

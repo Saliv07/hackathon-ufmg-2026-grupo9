@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Bot, FileText } from 'lucide-react';
 import './SidebarRight.css';
 
-function SidebarRight({ caseData, openDocuments, aiModel, messages, onUpdateMessages, onAgentReply }) {
+function SidebarRight({ caseData, openDocuments, aiModel, temperature, messages, onUpdateMessages, onAgentReply }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -38,6 +38,7 @@ function SidebarRight({ caseData, openDocuments, aiModel, messages, onUpdateMess
             content: doc.content,
           })),
           model: aiModel || 'gpt-4o',
+          temperature: temperature ?? 0.3,
         }),
       });
 
