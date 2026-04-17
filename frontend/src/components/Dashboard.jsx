@@ -4,11 +4,7 @@ import './Dashboard.css';
 
 const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-const ALERTS = [
-  { level: 'red', title: '3 casos de alto risco aguardando decisão', sub: 'SLA em <4h' },
-  { level: 'yellow', title: 'Advogado externo fora da política em 2 casos', sub: 'Esc. Almeida & Partners' },
-  { level: 'green', title: '86 acordos fechados nesta semana', sub: 'R$ 1.2M economizados' },
-];
+
 
 function Dashboard({ caseData }) {
   const [stats, setStats] = useState(null);
@@ -214,24 +210,7 @@ function Dashboard({ caseData }) {
             </div>
           </div>
 
-          {/* Alertas */}
-          <div className="rail-card">
-            <div className="rail-card-header">
-              <Bell size={16} />
-              <h3>Alertas operacionais</h3>
-            </div>
-            <div className="rail-card-body" style={{ paddingTop: 4, paddingBottom: 4 }}>
-              {ALERTS.map((a, i) => (
-                <div className="alert-item" key={i}>
-                  <span className={`alert-dot ${a.level}`} />
-                  <div className="alert-body">
-                    <div className="alert-title">{a.title}</div>
-                    <div className="alert-sub">{a.sub}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+
         </div>
       </div>
 

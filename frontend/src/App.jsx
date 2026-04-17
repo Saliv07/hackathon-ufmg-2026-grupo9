@@ -7,6 +7,7 @@ import SidebarRight from './components/SidebarRight';
 import Dashboard from './components/Dashboard';
 import CaseSelection from './components/CaseSelection';
 import CaseSummary from './components/CaseSummary';
+import CaseConclusion from './components/CaseConclusion';
 import GlobalSidebar from './components/GlobalSidebar';
 import LoginScreen from './components/LoginScreen';
 import DataExplorer from './components/DataExplorer';
@@ -27,9 +28,7 @@ function App() {
   const [cases, setCases] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [successChance, setSuccessChance] = useState(85);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    try { return localStorage.getItem('enter-logged-in') === 'true'; } catch { return false; }
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentView, setCurrentView] = useState('case-selection');
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDocuments, setCaseDocuments] = useState([]);
@@ -127,7 +126,7 @@ function App() {
 
     const savedSession = workspaceSessions[caseData.id];
     if (savedSession) {
-      // Filtra documentos salvos para garantir que ainda existem (podem ter sido deletados em teoria)
+      // Filtra documentos salvos para garantir que ainda existem
       const validOpenIds = savedSession.openDocumentIds || [];
       const restoredOpen = allDocs.filter(d => validOpenIds.includes(d.id));
       
@@ -142,7 +141,8 @@ function App() {
         setActiveDocumentId(firstDoc.id);
         setSelectedDocument(firstDoc);
       }
-      if (savedSession.currentView) setCurrentView(savedSession.currentView);
+      // Sempre volta para o sumário ao selecionar um caso pelo menu lateral
+      setCurrentView('case-summary');
     } else {
       const firstDoc = allDocs[0];
       setOpenDocuments([firstDoc]);
@@ -266,12 +266,33 @@ function App() {
 
   const handleProceedToWorkspace = () => setCurrentView('workspace');
 
+  // Auto-hide the global sidebar when entering the workspace
+  useEffect(() => {
+    if (currentView === 'workspace') {
+      setIsSidebarCollapsed(true);
+    }
+  }, [currentView]);
+
   const renderView = () => {
     if (loading) return <div className="loading-screen">Carregando dados do servidor Python...</div>;
     if (currentView === 'case-selection') return <CaseSelection onSelectCase={handleSelectCase} cases={cases} />;
     if (currentView === 'case-summary') return <CaseSummary caseData={selectedCase} onProceed={handleProceedToWorkspace} />;
     if (currentView === 'dashboard') return <Dashboard caseData={selectedCase || cases[0]} />;
     if (currentView === 'data-explorer') return <DataExplorer />;
+
+    if (currentView === 'case-conclusion') {
+      return (
+        <CaseConclusion
+          caseData={selectedCase}
+          onBack={() => setCurrentView('case-summary')}
+          onComplete={(feedback) => {
+            console.log('Caso concluído!', selectedCase.id, feedback);
+            // Poderia adicionar o caso aos completedCases aqui
+            setCurrentView('case-selection');
+          }}
+        />
+      );
+    }
 
     if (currentView === 'workspace') {
       return (
@@ -399,6 +420,7 @@ function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         hasNewNotification={hasNewNotification}
         onClearNotification={() => setHasNewNotification(false)}
+        onConcluir={() => setCurrentView('case-conclusion')}
       />
       <div className="main-layout">
         <GlobalSidebar

@@ -29,16 +29,19 @@ function CaseSummary({ caseData, onProceed }) {
     <div className="case-summary-container slide-in">
       <div className="summary-content structured-summary">
         <div className="ai-header">
-          <Bot size={32} className="ai-icon" />
-          <div className="header-titles">
-            <h2>Análise Estratégica IA</h2>
-            <span className="case-num">{caseData.number} • {caseData.plaintiff}</span>
+          <div className="ai-header-left">
+            <Bot size={32} className="ai-icon" />
+            <div className="header-titles">
+              <h2>Análise Estratégica IA</h2>
+              <span className="case-num">{caseData.number} • {caseData.plaintiff}</span>
+            </div>
           </div>
+
         </div>
         
         <div className="dashboard-grid">
-          {/* KPI Card */}
-          <div className="dashboard-card kpi-card">
+          {/* Score Card */}
+          <div className="dashboard-card score-card">
             <div className="score-section">
               <div className="card-header">
                 <ShieldCheck size={18} />
@@ -60,12 +63,16 @@ function CaseSummary({ caseData, onProceed }) {
                 <small>{claimDetails}</small>
               </div>
             </div>
+          </div>
             
+          {/* Profile Card */}
+          <div className="dashboard-card profile-card">
             <div className="profile-info">
               <div className="card-header">
                 <User size={14} /> <h3>Perfil do Autor</h3>
               </div>
               <ul className="profile-list">
+                <li><strong>Pessoa no Contrato:</strong> <span style={{ color: 'var(--primary-light)' }}>{caseData.plaintiff}</span></li>
                 <li><strong>Gênero/Idade:</strong> <span>{authorProfile.gender}, {authorProfile.age} anos</span></li>
                 <li><strong>Estado Civil:</strong> <span>{authorProfile.civilStatus}</span></li>
                 <li><strong>Localização:</strong> <span>{authorProfile.location}</span></li>
@@ -102,7 +109,7 @@ function CaseSummary({ caseData, onProceed }) {
         {/* Bottom Grid: Alerts & Recommendation */}
         <div className="bottom-dashboard-grid">
           {/* Red Flags */}
-          <div className="alerts-section">
+          <div className="dashboard-card alerts-section">
             <div className="card-header">
               <AlertTriangle size={18} className="danger-icon" />
               <h3>Alertas e Red Flags</h3>
@@ -122,27 +129,33 @@ function CaseSummary({ caseData, onProceed }) {
           </div>
           
           {/* Recommendation */}
-          <div className="ai-suggestion structured-suggestion">
+          <div className="structured-suggestion">
             <div className="suggestion-header">
               <Bot size={20} />
               <h4>Indicação de Solução</h4>
             </div>
             <div className="recommendation-content">
-              <div className="thesis-box">
-                <strong>Tese Recomendada</strong>
-                <p>{thesis}</p>
+              <div className="recommendation-text-area">
+                <div className="thesis-box">
+                  <strong>Tese Recomendada</strong>
+                  <p>{thesis}</p>
+                </div>
+                <div className="suggestion-details">
+                  <p><strong>Ação: {caseData.recommendation}</strong></p>
+                  <p>{caseData.suggestion}</p>
+                </div>
               </div>
-              <div className="suggestion-details">
-                <p><strong>Ação: {caseData.recommendation}</strong></p>
-                <p>{caseData.suggestion}</p>
+              <div className="recommendation-action-area">
+                <button className="proceed-button-massive" onClick={onProceed}>
+                  <span>Área de Trabalho</span>
+                  <ArrowRight size={24} />
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        <button className="proceed-button" onClick={onProceed}>
-          Abrir Área de Trabalho <ArrowRight size={20} />
-        </button>
+
       </div>
     </div>
   );
