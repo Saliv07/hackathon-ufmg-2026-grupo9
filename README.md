@@ -172,3 +172,54 @@ A URL deve seguir o formato:
 ```
 https://github.com/<usuario-ou-org>/hackathon-ufmg-2026-grupo<N>
 ```
+
+---
+
+## 🚀 Como Executar o Projeto
+
+Para rodar a plataforma jurídica do **Grupo 9** localmente, você precisa inicializar o **backend (Python)** e o **frontend (Vite/React)** em terminais separados.
+
+### 1. Pré-requisitos
+- **Node.js** (v18 ou superior)
+- **Python** (v3.9 ou superior)
+- Chave da API da OpenAI
+
+### 2. Configuração de Variáveis de Ambiente
+Na raiz do projeto, copie o arquivo de exemplo e crie o `.env`:
+```bash
+cp .env.example .env
+```
+Abra o `.env` e preencha sua chave da OpenAI:
+```env
+OPENAI_API_KEY=sk-sua-chave-aqui
+```
+
+### 3. Rodando o Backend (Python / Flask)
+Abra um terminal e execute:
+```bash
+cd backend
+
+# (Opcional) Crie e ative um ambiente virtual
+python -m venv venv
+source venv/bin/activate  # ou venv\Scripts\activate no Windows
+
+# Instale as dependências
+pip install -r requirements.txt
+
+# Inicie o servidor
+python main.py
+```
+O backend estará rodando em `http://localhost:5000`.
+
+### 4. Rodando o Frontend (Vite / React)
+Abra um novo terminal e execute:
+```bash
+cd frontend
+
+# Instale as dependências
+npm install
+
+# Inicie o servidor de desenvolvimento
+npm run dev
+```
+O frontend estará acessível em `http://localhost:5173`. Acesse essa URL no navegador e faça login para usar a plataforma!
