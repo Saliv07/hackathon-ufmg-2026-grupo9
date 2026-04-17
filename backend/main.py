@@ -1,6 +1,7 @@
 import os
 import io
 import time
+import base64
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -281,8 +282,58 @@ def upload_document():
         with open(save_path, 'wb') as f:
             f.write(file_bytes)
         file_url = f"/api/uploads/{unique_name}"
+    elif filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        # OCR para imagens usando GPT-4o-mini
+        try:
+            print(f"DEBUG: Iniciando OCR para {filename}...")
+            base64_image = base64.b64encode(file_bytes).decode('utf-8')
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Transcreva todo o texto desta imagem. Se for uma conversa de WhatsApp ou chat, identifique os interlocutores e formate como um diálogo. Se houver datas ou nomes importantes, destaque-os."},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                },
+                            },
+                        ],
+                    }
+                ],
+            )
+            content = f"Transcrição da Imagem ({filename}):\n\n" + response.choices[0].message.content
+        except Exception as e:
+            print(f"ERROR: OCR falhou: {e}")
+            content = f"Erro ao processar imagem: {str(e)}"
+        
+        with open(save_path, 'wb') as f:
+            f.write(file_bytes)
+        file_url = f"/api/uploads/{unique_name}"
+
+    elif filename.lower().endswith(('.mp3', '.wav', '.m4a', '.ogg', '.webm')):
+        # Transcrição de áudio usando Whisper
+        try:
+            print(f"DEBUG: Iniciando transcrição de áudio para {filename}...")
+            audio_file = io.BytesIO(file_bytes)
+            audio_file.name = filename # Necessário para o client da OpenAI detectar o formato
+            transcription = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
+            content = f"Transcrição de Áudio ({filename}):\n\n" + transcription.text
+        except Exception as e:
+            print(f"ERROR: Transcrição falhou: {e}")
+            content = f"Erro ao transcrever áudio: {str(e)}"
+            
+        with open(save_path, 'wb') as f:
+            f.write(file_bytes)
+        file_url = f"/api/uploads/{unique_name}"
+
     else:
-        # Imagens e outros: salva e serve
+        # Outros arquivos: salva e serve
         with open(save_path, 'wb') as f:
             f.write(file_bytes)
         file_url = f"/api/uploads/{unique_name}"

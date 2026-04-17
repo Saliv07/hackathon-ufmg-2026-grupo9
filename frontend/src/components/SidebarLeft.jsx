@@ -35,7 +35,7 @@ function SidebarLeft({ documents, selectedDocument, onSelectDocument, onUploadDo
             {uploading ? '⏳' : '+ Anexar'}
           </button>
         </div>
-        <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg" style={{ display: 'none' }} onChange={handleFileChange} />
+        <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.mp3,.wav,.m4a,.ogg" style={{ display: 'none' }} onChange={handleFileChange} />
       </div>
       <div className="document-list">
         {documents.map((doc) => (
