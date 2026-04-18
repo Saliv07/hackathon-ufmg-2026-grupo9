@@ -207,6 +207,25 @@ function App() {
     }
   };
 
+  const handleDeleteDocument = (docId) => {
+    if (!selectedCase) return;
+    
+    // Remove from customDocs (localStorage)
+    setCustomDocs(prev => {
+      const caseDocs = prev[selectedCase.id] || [];
+      return {
+        ...prev,
+        [selectedCase.id]: caseDocs.filter(d => d.id !== docId)
+      };
+    });
+
+    // Remove from active state lists
+    setCaseDocuments(prev => prev.filter(d => d.id !== docId));
+    
+    // Close the tab if it's open
+    handleCloseDocument(docId);
+  };
+
   const handleUploadDocument = (newDoc) => {
     const enriched = newDoc.fileUrl?.startsWith('/api/')
       ? { ...newDoc, fileUrl: `${BACKEND}${newDoc.fileUrl}` }
@@ -305,6 +324,7 @@ function App() {
               onSelectDocument={handleSelectDocument}
               onUploadDocument={handleUploadDocument}
               onCreateNote={handleCreateNote}
+              onDeleteDocument={handleDeleteDocument}
             />
           </div>
 
