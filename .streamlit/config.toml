@@ -7,9 +7,10 @@ textColor = "#ffffff"
 font = "sans serif"
 
 [server]
-headless = false
+headless = true
 enableCORS = false
 enableXsrfProtection = false
+baseUrlPath = "/monitoramento"
 
 [browser]
 gatherUsageStats = false

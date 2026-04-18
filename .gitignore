@@ -48,3 +48,10 @@ Thumbs.db
 
 # Pytest
 .pytest_cache/
+
+# Gateway binário (Caddy) e logs
+bin/
+logs/
+
+# Build do frontend
+frontend/dist/
