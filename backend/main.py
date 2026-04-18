@@ -104,7 +104,11 @@ def _load_historical():
             return
 
         wb = openpyxl.load_workbook(xlsx_path, read_only=True)
-        ws = wb["Resultados dos processos"]
+        sheet_name = "Resultados dos processos"
+        if sheet_name not in wb.sheetnames:
+            sheet_name = wb.sheetnames[0]
+            print(f"WARNING: Aba '{sheet_name}' não encontrada, usando primeira aba: '{wb.sheetnames[0]}'")
+        ws = wb[sheet_name]
         rows = []
         for i, row in enumerate(ws.iter_rows(values_only=True)):
             if i == 0:
@@ -368,4 +372,4 @@ def serve_upload(filename):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=True, port=5001, host='0.0.0.0')

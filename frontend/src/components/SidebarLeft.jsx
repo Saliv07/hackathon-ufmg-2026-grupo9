@@ -14,7 +14,7 @@ function SidebarLeft({ documents, selectedDocument, onSelectDocument, onUploadDo
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await fetch(`http://${window.location.hostname}:5000/api/upload`, { method: 'POST', body: formData });
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const newDoc = await res.json();
       if (newDoc.id) onUploadDocument(newDoc);
     } catch (err) {

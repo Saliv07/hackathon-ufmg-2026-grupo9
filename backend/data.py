@@ -1,17 +1,20 @@
 import os
 
-import os
-
 # Resolução de caminhos cross-platform (Windows/Linux)
 _backend_dir = os.path.dirname(os.path.abspath(__file__))
 _project_dir = os.path.dirname(_backend_dir)
 _hackaton_dir = os.path.dirname(_project_dir)
 
-# Tenta encontrar a pasta de documentos em locais comuns do hackathon
-DOCS_BASE = os.path.join(_hackaton_dir, "Docs Hackkaton", "drive-dowload")
+# Prioridade: env var > pasta externa do hackathon > data/docs_processos
+DOCS_BASE = (
+    os.getenv("DOCS_BASE_PATH")
+    or os.path.join(_hackaton_dir, "Docs Hackkaton", "drive-dowload")
+)
 if not os.path.exists(DOCS_BASE):
-    # Se não achar na raiz externa, tenta procurar dentro do repo ou em 'data'
     DOCS_BASE = os.path.join(_project_dir, "data", "docs_processos")
+    os.makedirs(DOCS_BASE, exist_ok=True)
+
+print(f"DEBUG: DOCS_BASE = {DOCS_BASE}")
 
 _caso1 = os.path.join(DOCS_BASE, "Caso_01_0801234-56-2024-8-10-0001")
 _caso2 = os.path.join(DOCS_BASE, "Caso_02_0654321-09-2024-8-04-0001")

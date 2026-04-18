@@ -14,8 +14,8 @@ import DataExplorer from './components/DataExplorer';
 import SettingsModal from './components/SettingsModal';
 import SearchOverlay from './components/SearchOverlay';
 
-const BACKEND = `http://${window.location.hostname}:5000`;
-const API_URL = `${BACKEND}/api`;
+const BACKEND = '';
+const API_URL = '/api';
 
 const TAB_ICONS = {
   'Autos': '⚖️',

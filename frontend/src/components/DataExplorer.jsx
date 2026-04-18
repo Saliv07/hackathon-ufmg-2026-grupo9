@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, ChevronLeft, ChevronRight, Database, ArrowUp, ArrowDown } from 'lucide-react';
 import './DataExplorer.css';
 
-const BACKEND = `http://${window.location.hostname}:5000`;
+const BACKEND = '';
 
 const COLS = [
   { key: 'Número do processo', label: 'Nº Processo', mono: true },
