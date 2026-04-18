@@ -8,8 +8,7 @@ data/*.csv
 data/raw/
 data/processed/*.parquet
 data/processed/*.json
-data/subsidios/
-data/processos_exemplo/
+# data/subsidios/ e data/processos_exemplo/ são versionados para os modelos
 
 # Dependências de pacotes
 node_modules/
