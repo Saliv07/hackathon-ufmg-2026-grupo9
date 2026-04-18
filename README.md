@@ -2,7 +2,22 @@
 
 **17 e 18 de Abril de 2026**
 
-> Aplique IA para resolver, em equipe, um problema real que toda grande empresa do Brasil enfrenta.
+---
+
+# 🚀 Início Rápido (Quick Start)
+
+Para rodar o projeto agora mesmo, siga estes passos:
+
+1.  **Abra o seu terminal.**
+2.  **Entre na pasta onde o código foi baixado:**
+    ```bash
+    cd hackathon-ufmg-2026-grupo9
+    ```
+3.  **Rode o comando automático:**
+    - **No Windows**: `.\run`
+    - **No Linux ou macOS**: `bash run.sh`
+
+---
 
 ---
 
