@@ -3,8 +3,13 @@
 **Hackathon UFMG 2026 · Enter AI Challenge · Grupo 9**
 17 e 18 de Abril de 2026
 
----
 
+---
+## Link para slides
+
+https://www.figma.com/deck/I0CU9AD9X3Hk718NOIOCzv
+
+---
 ## Demo em vídeo
 
 Veja a aplicação funcionando: **https://youtu.be/Isxih7zVurc**
