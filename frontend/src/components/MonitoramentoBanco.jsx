@@ -4,9 +4,12 @@ import './MonitoramentoBanco.css';
 
 // Em produção (com Caddy gateway), o Streamlit é servido no mesmo origin
 // em /monitoramento/. Em dev (Vite standalone), cai no fallback direto na :8501.
-const STREAMLIT_URL = window.location.port === '5173'
+// ?embed=true ativa o modo embutido do Streamlit: remove header, toolbar
+// e padding extra — adequado para iframe dentro da plataforma.
+const STREAMLIT_BASE = window.location.port === '5173'
   ? `http://${window.location.hostname}:8501/monitoramento/`
   : '/monitoramento/';
+const STREAMLIT_URL = `${STREAMLIT_BASE}?embed=true`;
 
 export default function MonitoramentoBanco() {
   const [loadError, setLoadError] = useState(false);

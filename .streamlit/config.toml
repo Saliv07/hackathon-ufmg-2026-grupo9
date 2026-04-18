@@ -14,3 +14,9 @@ baseUrlPath = "/monitoramento"
 
 [browser]
 gatherUsageStats = false
+
+[client]
+# minimal esconde o botao "Deploy" e o menu hamburguer — apropriado
+# para dashboard embutido via iframe na plataforma do advogado.
+toolbarMode = "minimal"
+showErrorDetails = "stacktrace"
