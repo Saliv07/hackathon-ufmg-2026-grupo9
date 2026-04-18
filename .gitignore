@@ -60,3 +60,10 @@ artefatos/*.pkl
 artefatos/X.pkl
 artefatos/y.pkl
 artefatos/dataset_completo.pkl
+
+# Config local do Claude Code (não versionar)
+.claude/
+
+# Uploads em runtime (pasta mantida via .gitkeep)
+backend/uploads/*
+!backend/uploads/.gitkeep
