@@ -898,9 +898,11 @@ def create_dash_app(flask_server):
         return _apply_layout(fig, height=320)
 
     def _build_uf_fig(df_f: pd.DataFrame) -> go.Figure:
-        por_uf = metrics_adherence.aderencia_por_uf(df_f).reset_index()
-        por_uf.columns = ["uf", "aderencia"]
-        por_uf = por_uf.sort_values("aderencia")
+        # Agrega aderência + n_casos por UF para tooltip informativo
+        por_uf = df_f.groupby("uf").agg(
+            aderencia=("aderente", "mean"),
+            n_casos=("numero_processo", "count"),
+        ).reset_index().sort_values("aderencia")
         por_uf["label"] = por_uf["aderencia"].apply(
             lambda p: f"{p*100:.1f}%".replace(".", ",")
         )
@@ -912,14 +914,30 @@ def create_dash_app(flask_server):
         ]
         fig = go.Figure(go.Bar(
             x=por_uf["aderencia"], y=por_uf["uf"], orientation="h",
-            marker_color=cores, text=por_uf["label"], textposition="outside",
+            marker_color=cores,
+            text=por_uf["label"], textposition="outside",
+            textfont=dict(size=11, family="JetBrains Mono", color=Colors.TEXT_MAIN),
+            customdata=por_uf["n_casos"],
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                "Aderência: %{x:.1%}<br>"
+                "n casos: %{customdata:,}<extra></extra>"
+            ),
         ))
+        # Altura dinâmica: ~24px por UF + margens. Com 27 UFs = ~680px.
+        height_dyn = max(400, 24 * len(por_uf) + 60)
         fig.update_layout(
             xaxis_title="Aderência", yaxis_title=None,
-            xaxis_tickformat=".0%", xaxis_range=[0, 1.0],
-            margin=dict(l=10, r=40, t=10, b=10), showlegend=False,
+            xaxis_tickformat=".0%", xaxis_range=[0, 1.08],
+            yaxis=dict(
+                tickfont=dict(size=11, family="JetBrains Mono",
+                              color=Colors.TEXT_MAIN),
+                automargin=True,
+            ),
+            bargap=0.35,
+            margin=dict(l=4, r=50, t=6, b=30), showlegend=False,
         )
-        return _apply_layout(fig, height=360)
+        return _apply_layout(fig, height=height_dyn)
 
     def _build_sensibilidade_fig(df_f: pd.DataFrame, prob_aceita: float,
                                  sim_potencial: dict) -> go.Figure:
