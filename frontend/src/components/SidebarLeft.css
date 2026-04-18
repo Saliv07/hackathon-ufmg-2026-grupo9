@@ -102,3 +102,25 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+.btn-delete-doc {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s, color 0.2s;
+}
+
+.document-item:hover .btn-delete-doc {
+  opacity: 0.6;
+}
+
+.btn-delete-doc:hover {
+  opacity: 1 !important;
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.1);
+}

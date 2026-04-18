@@ -25,7 +25,7 @@ describe('CaseSelection', () => {
     const onSelectCase = vi.fn();
     render(<CaseSelection cases={mockCases} onSelectCase={onSelectCase} />);
     
-    const card = screen.getByText('Maria').closest('.case-card');
+    const card = screen.getByText('Maria').closest('.case-row');
     fireEvent.click(card);
     
     expect(onSelectCase).toHaveBeenCalledWith(mockCases[0]);

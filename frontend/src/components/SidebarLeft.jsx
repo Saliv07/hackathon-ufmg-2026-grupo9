@@ -3,7 +3,7 @@ import './SidebarLeft.css';
 
 const DOC_ICONS = { 'Autos': '⚖️', 'Subsídio': '📋', 'Anexo': '📎', 'Nota': '✏️' };
 
-function SidebarLeft({ documents, selectedDocument, onSelectDocument, onUploadDocument, onCreateNote }) {
+function SidebarLeft({ documents, selectedDocument, onSelectDocument, onUploadDocument, onCreateNote, onDeleteDocument }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
 
@@ -14,7 +14,7 @@ function SidebarLeft({ documents, selectedDocument, onSelectDocument, onUploadDo
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await fetch(`http://${window.location.hostname}:5000/api/upload`, { method: 'POST', body: formData });
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const newDoc = await res.json();
       if (newDoc.id) onUploadDocument(newDoc);
     } catch (err) {
@@ -45,6 +45,7 @@ function SidebarLeft({ documents, selectedDocument, onSelectDocument, onUploadDo
               <div className="doc-name">{doc.name}</div>
               <div className="doc-type">{doc.type}</div>
             </div>
+            <button className="btn-delete-doc" onClick={(e) => { e.stopPropagation(); onDeleteDocument(doc.id); }} title="Remover documento">🗑️</button>
           </div>
         ))}
       </div>

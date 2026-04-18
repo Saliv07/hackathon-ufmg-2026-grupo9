@@ -4,9 +4,11 @@ Este guia explica como preparar seu ambiente do zero para rodar a solução do *
 
 O projeto tem três frentes convivendo no mesmo repositório:
 
-- **Plataforma do advogado** (backend Flask + frontend React) — seção 2
-- **Modelo XGBoost** (política de acordos) — ver `docs/politica_acordo.md`
-- **Monitoramento** (dashboards de aderência e efetividade) — seção 4
+- **Plataforma do advogado** (backend Flask + frontend React)
+- **Política de acordos** (pacote `src/policy/` + modelo XGBoost em `artefatos/`)
+- **Monitoramento** (dashboards Dash de aderência e efetividade, montados no mesmo Flask)
+
+Tudo roda em **um único processo Python** na porta **5000**.
 
 ---
 
@@ -14,155 +16,123 @@ O projeto tem três frentes convivendo no mesmo repositório:
 
 Você precisará ter instalado em sua máquina:
 
-*   **Python 3.9+**: [Download aqui](https://www.python.org/downloads/) (Marque a opção "Add Python to PATH" no Windows).
-*   **Node.js 18+**: [Download aqui](https://nodejs.org/).
-*   **Git**: Para versionamento.
+- **Python 3.10+** — [download](https://www.python.org/downloads/) (marque "Add Python to PATH" no Windows)
+- **Node.js 20.19+ ou 22.12+** — [download](https://nodejs.org/) (ver `.nvmrc`)
+- **Git** — para versionamento
+
+Nenhum outro binário externo é necessário (sem Docker, sem Caddy, sem scripts shell-specific).
 
 ---
 
-## 2. Configuração da Plataforma (backend + frontend)
+## 2. Configuração do Ambiente
 
-### Passo 1: Download/Clone
+### Passo 1: Clone
 ```bash
 git clone https://github.com/Saliv07/hackathon-ufmg-2026-grupo9.git
 cd hackathon-ufmg-2026-grupo9
 ```
 
-### Passo 2: Variáveis de Ambiente
-Crie um arquivo chamado `.env` na raiz da pasta `hackathon-ufmg-2026-grupo9`. O conteúdo deve ser:
+### Passo 2: Variáveis de ambiente
+Crie o arquivo `.env` na raiz do projeto:
 
 ```env
 OPENAI_API_KEY=sk-sua-chave-aqui-da-openai
 ```
 
-### Passo 3: Execução
+### Passo 3: Artefatos do XGBoost (opcional, mas recomendado)
 
-A plataforma usa um **gateway único na porta 8080** (Caddy) que roteia internamente para backend, monitoramento e frontend. Não é preciso instalar Caddy manualmente — os scripts baixam o binário em `./bin/caddy` na primeira execução.
+Os arquivos pesados do modelo (`*.pkl`, ~20 MB) são ignorados pelo git. Para baixá-los:
 
-#### Windows (PowerShell)
-Se for a primeira vez rodando scripts no seu PowerShell, você pode precisar liberar a permissão:
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-Depois, basta rodar o facilitador:
-```powershell
-.\run.ps1
-```
-
-#### Linux ou macOS
 ```bash
-bash run.sh
+git checkout origin/master -- artefatos/
 ```
+
+Sem isso o monitoramento cai num fallback de política mock.
+
+### Passo 4: Execução
+
+**Um único comando, idêntico em Windows, macOS e Linux:**
+
+```bash
+python run.py
+```
+
+O script cuida de tudo automaticamente:
+
+1. Verifica pré-requisitos (Python 3.10+, Node 20+)
+2. Cria o venv do backend e instala as dependências Python
+3. Instala as dependências do Node (`npm install`)
+4. Faz o build do frontend (`npm run build`)
+5. Gera os artefatos do monitoramento (parquets) se faltarem
+6. Sobe o Flask + Dash em foreground
 
 Após iniciar, acesse:
 
-- `http://localhost:8080/` — plataforma (frontend React)
-- `http://localhost:8080/api/*` — backend Flask
-- `http://localhost:8080/monitoramento/` — dashboard Streamlit (também disponível pelo menu "Monitoramento" dentro da plataforma)
+- `http://localhost:5000/` — plataforma (frontend React)
+- `http://localhost:5000/api/*` — backend Flask
+- `http://localhost:5000/monitoramento/` — dashboard Dash (também pelo menu "Monitoramento" dentro da plataforma)
 
-#### Modo desenvolvimento (hot-reload)
-
-Para trabalhar no frontend com recarga instantânea:
-```bash
-bash dev.sh   # Linux/macOS
-```
-O Caddy passa a fazer proxy para o Vite dev server em vez de servir o build estático.
+**Para parar:** `Ctrl+C`.
 
 ---
 
-## 3. Troubleshooting da plataforma
+## 3. Troubleshooting
 
-### Erro: "python" não reconhecido
-Verifique se o Python está no seu PATH. Em alguns sistemas, o comando pode ser `python3` (o script `run.sh` já tenta usar `python3`).
+### "Python 3.10+ necessário"
+Atualize o Python. Se tiver múltiplas versões, rode explicitamente: `python3.10 run.py` ou `python3.12 run.py`.
 
-### Erro: Conexão recusada no Frontend
-O Frontend espera que o Backend esteja rodando na porta `5000`. Se o backend falhar ao iniciar, o frontend mostrará uma tela de carregamento infinita ou erro de conexão. Verifique se a porta 5000 não está sendo usada por outro programa.
+### "Node.js/npm não encontrado no PATH"
+Instale Node 20+ em [nodejs.org](https://nodejs.org/). Depois feche e reabra o terminal.
 
-### Dados Históricos
-O backend tenta carregar a base histórica de um arquivo Excel. Se o arquivo `Hackaton_Enter_Base_Candidatos.xlsx` não for encontrado nos caminhos mapeados em `backend/data.py`, o sistema funcionará apenas com os dados mockados de exemplo.
+### Backend sobe, mas o frontend mostra "página não encontrada"
+Verifique se `frontend/dist/index.html` existe. Se não, rode `python run.py` de novo — a etapa de build pode ter falhado silenciosamente.
+
+### Dashboard de monitoramento mostra "indisponível"
+Os parquets em `data/processed/` são necessários. Rode `python run.py` uma vez completo para gerá-los. Se persistir, verifique se o Excel `Hackaton_Enter_Base_Candidatos.xlsx` existe em `data/` ou `data/raw/`.
+
+### `pip install` falha por política corporativa / proxy
+Configure o proxy do pip:
+```bash
+./backend/venv/bin/pip install --proxy http://seu.proxy:porta -r backend/requirements.txt
+```
+E rode `python run.py` de novo — o script pula a instalação se as deps já estiverem OK.
+
+### `Address already in use` na porta 5000
+Outra aplicação está ocupando a 5000. Encerre-a ou defina `FLASK_RUN_PORT=5050` e ajuste `run.py`.
 
 ---
 
-## 4. Rodar apenas a frente de monitoramento
+## 4. Suíte de testes
 
-A frente de monitoramento (requisitos 4 e 5 do enunciado) tem seu próprio pipeline independente da plataforma. Use esta seção se quer rodar só os dashboards de aderência e efetividade.
-
-### Pré-requisitos
-- Python 3.10 ou superior (testado em 3.14.3)
-- Arquivo `Hackaton_Enter_Base_Candidatos.xlsx` em `data/` ou `data/raw/`
-
-### Instalação
+A frente de monitoramento tem 65 testes automáticos:
 
 ```bash
-cd hackathon-ufmg-2026-grupo9
-git checkout vilas  # ou a branch onde a frente está
-python3 -m venv venv
-source venv/bin/activate      # Linux/Mac
-# venv\Scripts\activate       # Windows
-pip install -r requirements.txt
+./backend/venv/bin/pytest tests/ -q
 ```
 
-### Pipeline de geração de artefatos
+Cobertura em 3 camadas: smoke, propriedades e unitários (ver `docs/DECISOES.md`).
 
-Execute na ordem (cada etapa depende da anterior):
+---
+
+## 5. Pipeline manual (debug)
+
+Se preferir rodar as etapas isoladamente sem o `run.py`:
 
 ```bash
-# 1. Carrega o xlsx → casos_60k.parquet (~2 MB, 60k × 17 colunas)
-python -m src.monitor.load_data
+# Backend venv e deps
+python3 -m venv backend/venv
+./backend/venv/bin/pip install -r backend/requirements.txt
 
-# 2. Calcula números de referência → baseline.json
-python -m src.monitor.baseline
+# Frontend build
+cd frontend && npm install && npm run build && cd ..
 
-# 3. Gera dataset enriquecido → casos_enriquecidos.parquet (60k × 31 colunas)
-python -m src.monitor.gerar_sintetico
+# Artefatos do monitoramento
+./backend/venv/bin/python -m src.monitor.load_data
+./backend/venv/bin/python -m src.monitor.baseline
+./backend/venv/bin/python -m src.monitor.gerar_sintetico
+# Opcional (se artefatos/ tiver o modelo)
+./backend/venv/bin/python -m src.monitor.politica_xgboost
+
+# Sobe o servidor
+cd backend && ./venv/bin/python main.py
 ```
-
-Tempo total: < 30 segundos em máquina moderna.
-
-### Executar o dashboard
-
-```bash
-streamlit run src/monitor/dashboards/app.py
-```
-
-Abre em `http://localhost:8501`. Sidebar tem 3 abas:
-- **Visão Geral** — baseline pré-política (dados reais dos 60k)
-- **Aderência** — os advogados estão seguindo a política? (dados sintéticos enriquecidos)
-- **Efetividade** — a política está gerando resultado? (contrafactual com slider de sensibilidade)
-
-### Rodar a bateria de testes
-
-```bash
-pytest tests/ -v
-```
-
-Esperado: **65+ testes passando em ~2s.** Cobertura em 3 níveis (smoke, propriedades, unitários).
-
-### Integração com output real do XGBoost
-
-Quando a frente de algoritmo entregar o CSV com a política real:
-
-```bash
-cp /caminho/para/politica_output.csv data/processed/
-# Reiniciar o Streamlit — ele detecta o CSV automaticamente
-```
-
-Formato esperado:
-```
-numero_processo,acao_recomendada,valor_acordo_recomendado,score_confianca
-```
-
-### Troubleshooting do monitoramento
-
-**`ModuleNotFoundError: No module named 'src.monitor.paths'`**
-→ Você está executando de fora do repo root. `cd` pro repo e rode com `python -m src.monitor.<script>`.
-
-**Streamlit pede email no primeiro uso**
-→ Crie `~/.streamlit/credentials.toml`:
-```toml
-[general]
-email = ""
-```
-
-**Parquet não encontrado ao abrir o dashboard**
-→ Rode o pipeline de geração (passos 1-3 acima) antes do `streamlit run`.

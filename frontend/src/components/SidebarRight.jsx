@@ -42,8 +42,7 @@ function SidebarRight({
     setIsLoading(true);
 
     try {
-      const hostname = window.location.hostname;
-      const response = await fetch(`http://${hostname}:5000/api/analyze`, {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

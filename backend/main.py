@@ -1,6 +1,5 @@
 import os
 import io
-import sys
 import time
 import base64
 from flask import Flask, jsonify, request, send_file, send_from_directory
@@ -8,26 +7,38 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
 from werkzeug.utils import secure_filename
-
-# Garante que o repo root está no sys.path para permitir `import src.monitor.*`
-# quando `main.py` é executado diretamente (python backend/main.py).
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
-from data import CASES, RAW_STATS
-from services.stats_service import calculate_macro_stats
+try:
+    # Suporta execucao direta: `python backend/main.py`
+    from data import CASES, RAW_STATS
+    from services.stats_service import calculate_macro_stats, load_historical_snapshot
+    from services.policy_service import get_policy_text, load_policy
+    from services.model_service import load_model as load_xgboost, predict as model_predict
+except ImportError:
+    # Suporta execucao como modulo: `python -m backend.main`
+    from backend.data import CASES, RAW_STATS
+    from backend.services.stats_service import calculate_macro_stats, load_historical_snapshot
+    from backend.services.policy_service import get_policy_text, load_policy
+    from backend.services.model_service import load_model as load_xgboost, predict as model_predict
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 api_key = os.getenv("OPENAI_API_KEY")
 print(f"DEBUG: OpenAI API Key loaded: {bool(api_key)}")
 
 app = Flask(__name__)
+# O frontend roda em outra porta durante o desenvolvimento (Vite em 5173),
+# então precisamos liberar CORS para todos os endpoints /api/*.
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 client = OpenAI(api_key=api_key)
 
 STATS = calculate_macro_stats(RAW_STATS)
+
+# ── Carrega modelo XGBoost ─────────────────────────────────────────────────────
+_model_ok = load_xgboost()
+if _model_ok:
+    print("DEBUG: Modelo XGBoost pronto para predições")
+else:
+    print("WARNING: Modelo XGBoost NÃO carregado")
 
 ALLOWED_MODELS = {'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'}
 
@@ -95,34 +106,19 @@ _HISTORICAL_HEADERS = None
 _HISTORICAL_ROWS = []
 
 def _load_historical():
-    global _HISTORICAL_HEADERS, _HISTORICAL_ROWS
+    global _HISTORICAL_HEADERS, _HISTORICAL_ROWS, STATS
     try:
-        import openpyxl
-        # Caminho oficial (fora do repo)
-        xlsx_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "Docs Hackkaton", "drive-dowload", "Hackaton_Enter_Base_Candidatos.xlsx"
-        )
-        # Caminho alternativo (dentro do repo se alguém copiou pra lá)
-        if not os.path.exists(xlsx_path):
-            xlsx_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "Hackaton_Enter_Base_Candidatos.xlsx")
-
-        if not os.path.exists(xlsx_path):
-            print(f"WARNING: Historical Excel not found at {xlsx_path}. Running with mocked data only.")
-            return
-
-        wb = openpyxl.load_workbook(xlsx_path, read_only=True)
-        ws = wb["Resultados dos processos"]
-        rows = []
-        for i, row in enumerate(ws.iter_rows(values_only=True)):
-            if i == 0:
-                _HISTORICAL_HEADERS = [str(c) for c in row]
-                continue
-            rows.append({_HISTORICAL_HEADERS[j]: (v if v is not None else "") for j, v in enumerate(row)})
-        wb.close()
+        headers, rows, policy_projection = load_historical_snapshot()
+        _HISTORICAL_HEADERS = headers
         _HISTORICAL_ROWS = rows
-        print(f"DEBUG: Historical base loaded: {len(rows)} rows")
+        STATS = calculate_macro_stats(RAW_STATS, policy_projection=policy_projection)
+
+        if rows:
+            print(f"DEBUG: Historical base loaded: {len(rows)} rows")
+        else:
+            print("WARNING: Historical base not found; dashboard projection disabled")
     except Exception as e:
+        STATS = calculate_macro_stats(RAW_STATS)
         print(f"WARNING: Could not load historical base: {e}")
 
 _load_historical()
@@ -205,32 +201,81 @@ def analyze_case():
     # Monta contexto do dashboard (base histórica)
     stats_context = (
         "\n\n## Base Histórica — Banco UFMG (60.000 processos)\n"
-        f"- Taxa de Êxito do banco: **{STATS['success_rate']}%** "
+        f"- Taxa de Êxito do banco: *{STATS['success_rate']}%* "
         f"(Improcedência + Extinção = banco ganha)\n"
-        f"- Taxa de Não Êxito: **{STATS['loss_rate']}%** "
+        f"- Taxa de Não Êxito: *{STATS['loss_rate']}%* "
         f"(Parcial procedência + Procedência = banco perde)\n"
-        f"- Acordos realizados até hoje: **{STATS['agreement_rate']}%** "
+        f"- Acordos realizados até hoje: *{STATS['agreement_rate']}%* "
         f"(apenas 280 de 60.000 casos)\n"
         "- Detalhamento micro: "
         + ", ".join(f"{d['label']} {d['value']}%" for d in STATS['detailed'])
-        + "\n- **Insight**: há 18.267 casos de não êxito que poderiam ter sido acordados "
+        + "\n- *Insight*: há 18.267 casos de não êxito que poderiam ter sido acordados "
         "com valor controlado, potencialmente reduzindo o ticket médio de condenação em ~60%."
     )
 
     system_prompt = (
         "Você é um Agente Jurídico especialista em política de acordos para o Banco UFMG. "
         "Sua função é analisar processos de não reconhecimento de contratação de empréstimo consignado "
-        "e recomendar ACORDO ou DEFESA com base nos documentos e na política do banco.\n\n"
-        "Use os dados da Base Histórica para embasar probabilidades e estimativas financeiras. "
-        "Use os Documentos Abertos como fonte primária para analisar o caso específico. "
+        "e recomendar ACORDO ou DEFESA.\n\n"
+
+        "## Sua Base de Conhecimento\n"
+        "Você deve seguir RIGOROSAMENTE a Política de Acordos abaixo. "
+        "Use o modelo preditivo como informação complementar para embasar sua justificativa.\n\n"
+
+        f"## Política de Acordos\n{get_policy_text()}\n\n"
+
+        "## Como Usar o Modelo Preditivo XGBoost\n"
+        "- O modelo foi treinado em 60.000 processos históricos do banco\n"
+        "- Ele retorna uma probabilidade calibrada de que o caso deveria ser ACORDO\n"
+        "- Use essa probabilidade para complementar e justificar sua análise\n"
+        "- A Política de Acordos sempre prevalece sobre o modelo\n\n"
+
+        "## Formato da Resposta\n"
+        "REGRA FUNDAMENTAL: Responda EXATAMENTE o que o advogado pedir. "
+        "Se ele pedir 'apenas o valor', responda só o valor. "
+        "Se pedir 'apenas a recomendação', responda só a recomendação. "
+        "Se fizer uma saudação, responda cordialmente. "
+        "Use o formato estruturado completo SOMENTE quando for pedida uma análise completa do caso ou uma explicação do por que deu um resultado, por exemplo: 'Por que o resultado deu para defender?'.\n\n"
+        "Quando for uma análise de caso, estruture assim:\n"
+        "1. Recomendação: ACORDO ou DEFESA (em destaque)\n"
+        "2. Justificativa pela Política: qual cenário da matriz se aplica e por quê\n"
+        "3. Modelo Preditivo: cite a probabilidade como informação complementar. NÃO MENCIONE DIRETAMENTE O MODELO. POR MAIS QUE ESTEJAMOS CALCULANDO A PROBABILIDADE DE ACORDO, NÃO UTILIZE ESSAS PALAVRAS, POIS PODE FICAR AMBÍGUO EM CASO DE RESULTADO = DEFESA. UTILIZE PROBABILIDADE DE ÊXITO NO PROCESSO, CASO SEJA O CASO\n"
+        "4. Fundamentação: análise dos documentos e subsídios disponíveis. MENCIONE OS SUBSIDEOS MAS NÃO MENCIONE OS CRITÉRIOS QUE USAMOS PARA A CLASSIFICAÇÃO\n"
+        "5. Valor Sugerido (se ACORDO): aplique a fórmula da política\n"
+        "6. Riscos e Atenções: pontos relevantes para o advogado\n\n"
+
         "Se o usuário citar um trecho entre aspas (precedido por '>'), analise especificamente aquele trecho. "
         "Seja objetivo, claro e fundamente suas conclusões nos fatos disponíveis."
     )
+
+    # ── Predição do XGBoost ───────────────────────────────────────────────
+    case_data = data.get('case_data', {})
+    prediction = model_predict(case_data)
+
+    model_context = ""
+    if prediction.get('model_loaded'):
+        prob = prediction['probability']
+        features = prediction['features']
+        subsidios_presentes = [k for k, v in features.items()
+                              if v == 1 and k not in ('is_golpe', 'uf_alto', 'uf_medio')]
+        subsidios_ausentes = [k for k, v in features.items()
+                             if v == 0 and k not in ('is_golpe', 'uf_alto', 'uf_medio')]
+
+        model_context = (
+            f"\n\n## Análise de Risco Processual (base: 60.000 processos históricos)\n"
+            f"- *Probabilidade de ACORDO*: {prob*100:.1f}%\n"
+            f"- *Confiança*: {prediction['confidence']}\n"
+            f"- *Subsídios presentes*: {', '.join(subsidios_presentes) or 'Nenhum'}\n"
+            f"- *Subsídios ausentes*: {', '.join(subsidios_ausentes) or 'Nenhum'}\n"
+        )
+        if features.get('uf_alto'):
+            model_context += "- UF de alto risco (AM/AP)\n"
 
     user_content = (
         f"## Dados do Processo\n{case_context}"
         f"{docs_context}"
         f"{stats_context}"
+        f"{model_context}"
         f"\n\n## Pergunta do Advogado\n{user_message}"
     )
 
@@ -375,49 +420,52 @@ def serve_upload(filename):
     return send_file(file_path, as_attachment=False)
 
 
-# ── Monitoramento · Filtros auxiliares ─────────────────────────────────────────
+# ── Monitoramento · filtros dinâmicos consumidos pela sidebar React ──────────
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+import sys  # noqa: E402
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 
 @app.route('/api/monitoring/filtros', methods=['GET'])
 def monitoring_filtros():
-    """Expõe opções de filtro (UFs, escritórios, período) para o painel React."""
+    """Lista UFs, escritórios e período disponíveis para os controles do React."""
     try:
         import pandas as pd
-        from pathlib import Path
-        path = Path(_REPO_ROOT) / "data" / "processed" / "casos_enriquecidos.parquet"
-        if not path.exists():
+        parquet_path = os.path.join(
+            _REPO_ROOT, "data", "processed", "casos_enriquecidos.parquet"
+        )
+        if not os.path.exists(parquet_path):
             return jsonify({
                 "ufs": [], "escritorios": [],
                 "escritorios_nomes": {}, "periodo": None,
             })
-        df = pd.read_parquet(path)
-        ufs = sorted(df["uf"].dropna().unique().tolist()) if "uf" in df.columns else []
-        esc_ids = (
-            sorted(df["escritorio_id"].dropna().unique().tolist())
-            if "escritorio_id" in df.columns else []
-        )
-        esc_nomes: dict = {}
-        if "escritorio_id" in df.columns and "escritorio_nome" in df.columns:
-            pairs = df[["escritorio_id", "escritorio_nome"]].drop_duplicates()
-            esc_nomes = dict(zip(pairs["escritorio_id"], pairs["escritorio_nome"]))
+        df = pd.read_parquet(parquet_path)
+        escritorios_nomes = {}
+        if "escritorio_nome" in df.columns:
+            escritorios_nomes = (
+                df[["escritorio_id", "escritorio_nome"]]
+                .drop_duplicates().set_index("escritorio_id")
+                ["escritorio_nome"].to_dict()
+            )
         periodo = None
         if "data_decisao" in df.columns:
             periodo = {
-                "min": pd.Timestamp(df["data_decisao"].min()).date().isoformat(),
-                "max": pd.Timestamp(df["data_decisao"].max()).date().isoformat(),
+                "min": df["data_decisao"].min().isoformat(),
+                "max": df["data_decisao"].max().isoformat(),
             }
         return jsonify({
-            "ufs": ufs,
-            "escritorios": esc_ids,
-            "escritorios_nomes": esc_nomes,
+            "ufs": sorted(df["uf"].unique().tolist()),
+            "escritorios": sorted(df["escritorio_id"].unique().tolist()),
+            "escritorios_nomes": escritorios_nomes,
             "periodo": periodo,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# ── Dash app (montado em /monitoramento/) ──────────────────────────────────────
-# Import tardio (depois de todas as rotas /api/*) para que o Dash não engula
-# paths como /monitoramento/* que são exclusivamente dele.
+# ── Dash app (montado em /monitoramento/) ────────────────────────────────────
+# Import tardio: garante que todas as rotas /api/* estão registradas antes.
 try:
     from src.monitor.dash_app import create_dash_app  # type: ignore
     _dash_app = create_dash_app(app)
@@ -427,7 +475,7 @@ except Exception as _dash_err:
     _dash_app = None
 
 
-# ── Frontend React (build estático) — catch-all DEVE ficar por último ─────────
+# ── Frontend React (build estático) — catch-all DEVE ficar por último ────────
 FRONTEND_DIST = os.path.join(_REPO_ROOT, "frontend", "dist")
 
 
@@ -435,7 +483,6 @@ FRONTEND_DIST = os.path.join(_REPO_ROOT, "frontend", "dist")
 @app.route('/<path:path>')
 def serve_frontend(path):
     """Serve o build React. Arquivos reais vencem; senão cai no index.html (SPA)."""
-    # Não captura /api/* nem /monitoramento/* — Flask tem rotas específicas para isso.
     if not os.path.isdir(FRONTEND_DIST):
         return jsonify({
             "error": "frontend/dist não existe. Rode `npm run build` no frontend.",

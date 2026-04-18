@@ -15,8 +15,8 @@ import MonitoramentoBanco from './components/MonitoramentoBanco';
 import SettingsModal from './components/SettingsModal';
 import SearchOverlay from './components/SearchOverlay';
 
-const BACKEND = `http://${window.location.hostname}:5000`;
-const API_URL = `${BACKEND}/api`;
+const BACKEND = '';
+const API_URL = '/api';
 
 const TAB_ICONS = {
   'Autos': '⚖️',
@@ -208,6 +208,25 @@ function App() {
     }
   };
 
+  const handleDeleteDocument = (docId) => {
+    if (!selectedCase) return;
+    
+    // Remove from customDocs (localStorage)
+    setCustomDocs(prev => {
+      const caseDocs = prev[selectedCase.id] || [];
+      return {
+        ...prev,
+        [selectedCase.id]: caseDocs.filter(d => d.id !== docId)
+      };
+    });
+
+    // Remove from active state lists
+    setCaseDocuments(prev => prev.filter(d => d.id !== docId));
+    
+    // Close the tab if it's open
+    handleCloseDocument(docId);
+  };
+
   const handleUploadDocument = (newDoc) => {
     const enriched = newDoc.fileUrl?.startsWith('/api/')
       ? { ...newDoc, fileUrl: `${BACKEND}${newDoc.fileUrl}` }
@@ -278,7 +297,7 @@ function App() {
     if (loading) return <div className="loading-screen">Carregando dados do servidor Python...</div>;
     if (currentView === 'case-selection') return <CaseSelection onSelectCase={handleSelectCase} cases={cases} />;
     if (currentView === 'case-summary') return <CaseSummary caseData={selectedCase} onProceed={handleProceedToWorkspace} />;
-    if (currentView === 'dashboard') return <Dashboard caseData={selectedCase || cases[0]} />;
+    if (currentView === 'dashboard') return <Dashboard onNavigate={setCurrentView} />;
     if (currentView === 'data-explorer') return <DataExplorer />;
     if (currentView === 'monitoramento') return <MonitoramentoBanco />;
 
@@ -307,6 +326,7 @@ function App() {
               onSelectDocument={handleSelectDocument}
               onUploadDocument={handleUploadDocument}
               onCreateNote={handleCreateNote}
+              onDeleteDocument={handleDeleteDocument}
             />
           </div>
 

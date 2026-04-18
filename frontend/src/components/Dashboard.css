@@ -87,19 +87,9 @@
 /* ─── Main grid ──────────────────────────────────────────────── */
 .dash-grid {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
   margin-bottom: 24px;
-}
-.dash-main-col {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.dash-rail-col {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 /* ─── Rail card ──────────────────────────────────────────────── */
@@ -370,3 +360,35 @@
   from { opacity: 0; transform: translateX(20px); }
   to { opacity: 1; transform: translateX(0); }
 }
+
+/* ─── Drill-down para Monitoramento ───────────────────────────── */
+.dash-drilldown-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 16px;
+  background: var(--bg-elev, #111111);
+  color: var(--accent-color, #FFAE35);
+  border: 1px solid var(--accent-color, #FFAE35);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dash-drilldown-btn:hover {
+  background: var(--accent-color, #FFAE35);
+  color: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 174, 53, 0.25);
+}
+
+.dash-drilldown-btn:active {
+  transform: translateY(0);
+}
+

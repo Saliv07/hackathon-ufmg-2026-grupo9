@@ -8,7 +8,7 @@ data/*.csv
 data/raw/
 data/processed/*.parquet
 data/processed/*.json
-# data/subsidios/ e data/processos_exemplo/ são versionados para os modelos
+# data/subsidios/ e data/processos_exemplo/ são versionados (liberados para os modelos)
 
 # Dependências de pacotes
 node_modules/
@@ -35,6 +35,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.codex
+.local/
+frontend/.vite/
 
 # Modelos e checkpoints pesados
 *.bin
@@ -48,10 +51,6 @@ Thumbs.db
 
 # Pytest
 .pytest_cache/
-
-# Gateway binário (Caddy) e logs
-bin/
-logs/
 
 # Build do frontend
 frontend/dist/
