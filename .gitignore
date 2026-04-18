@@ -55,3 +55,9 @@ logs/
 
 # Build do frontend
 frontend/dist/
+
+# Artefatos pesados do modelo XGBoost (baixar de origin/master sob demanda)
+artefatos/*.pkl
+artefatos/X.pkl
+artefatos/y.pkl
+artefatos/dataset_completo.pkl
