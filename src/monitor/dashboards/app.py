@@ -15,18 +15,21 @@ Arquitetura visual (após merge com a plataforma do advogado):
                                    segmentações, alertas completos
 
 Abas:
-    - Visão Geral  -> baseline imutável (60k casos, pré-política).
     - Aderência    -> KPIs A01/A02/A20 + drift temporal + rankings + alertas.
     - Efetividade  -> Potencial vs Realizada vs Gap + sensibilidade + redistribuição.
 
+A visão executiva macro (baseline pré-política) vive na plataforma React em
+`frontend/src/components/Dashboard.jsx`. Este dashboard foca exclusivamente nos
+requisitos 4 e 5 para evitar duplicação de escopo.
+
 Filtros globais (sidebar): UF, escritório, sub-assunto e período aplicam-se a
-Aderência e Efetividade. Visão Geral permanece ancorada ao baseline.
+ambas as abas.
 """
 from __future__ import annotations
 
 import json
 import sys
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 # Garante que o repo root está no sys.path quando este arquivo é invocado
@@ -105,15 +108,6 @@ def load_enriquecidos() -> pd.DataFrame | None:
     if not path.exists():
         return None
     return pd.read_parquet(path)
-
-
-@st.cache_data(show_spinner=False)
-def baseline_mtime_iso() -> str:
-    try:
-        ts = Path(BASELINE_JSON).stat().st_mtime
-        return datetime.fromtimestamp(ts).strftime("%d/%m/%Y %H:%M")
-    except OSError:
-        return "—"
 
 
 @st.cache_data(show_spinner=False)
@@ -210,13 +204,21 @@ df_enr = df_pol  # alias
 # ============================================================
 # Sidebar
 # ============================================================
-st.sidebar.title("Monitoramento")
-st.sidebar.caption("Política de Acordos · Banco UFMG")
+# Título compacto + pills de navegação (CSS em theme_banco_ufmg).
+st.sidebar.markdown(
+    '<h1 class="ufmg-sidebar-title">Monitoramento</h1>',
+    unsafe_allow_html=True,
+)
 
+# Radio nativo com CSS custom — visual de "pills" (círculos escondidos,
+# labels estilizados). Ver regras `.ufmg-nav-radio` em theme_banco_ufmg.
+st.sidebar.markdown('<div class="ufmg-nav-radio">', unsafe_allow_html=True)
 view = st.sidebar.radio(
     "Navegação",
-    ["Visão Geral", "Aderência", "Efetividade"],
+    ["Aderência", "Efetividade"],
+    label_visibility="collapsed",
 )
+st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
 st.sidebar.divider()
 
@@ -227,7 +229,7 @@ flt_periodo: tuple[date, date] | None = None
 data_min_global: date = date(2025, 4, 1)
 data_max_global: date = date(2026, 3, 31)
 
-if df_pol is not None and view != "Visão Geral":
+if df_pol is not None:
     with st.sidebar.expander("Filtros", expanded=False):
         uf_opts = sorted(df_pol["uf"].dropna().unique().tolist())
         esc_opts = sorted(df_pol["escritorio_id"].dropna().unique().tolist())
@@ -284,279 +286,10 @@ if view == "Efetividade":
         ),
     )
 
-# Fonte dos dados (transparência para a banca).
-if df_pol is None:
-    st.sidebar.caption(
-        "Fonte: baseline real (60k casos) · dataset enriquecido (sintético) "
-        "ainda não gerado."
-    )
-else:
-    fonte_txt = {
-        "csv": "CSV do XGBoost (política real)",
-        "mock": "mock (H2+H3 do DECISOES.md)",
-    }.get(fonte_politica, "indisponível")
-    st.sidebar.caption(
-        f"Baseline: 60k reais · Enriquecido: sintético (H5) · "
-        f"Política: **{fonte_txt}**"
-    )
-
-
 # ============================================================
-# Aba 1 · Visão Geral (baseline imutável)
+# Aba 1 · Aderência
 # ============================================================
-if view == "Visão Geral":
-    st.title("Banco UFMG · Política de Acordos")
-    st.caption("Baseline pré-política · 60.000 casos históricos")
-
-    volumetria = baseline["volumetria"]
-    financeiro = baseline["financeiro"]
-    pct_acordo_hoje = volumetria["dist_resultado_micro"].get("Acordo", 0.0)
-
-    # ────────────────────────────────────────────────────────
-    # Camada 1 · MANCHETE
-    # ────────────────────────────────────────────────────────
-    ui.headline(
-        texto_insight=(
-            "Banco UFMG opera hoje com política implícita de defender sempre"
-        ),
-        valor_grande=fmt_pct(pct_acordo_hoje, casas=2),
-        subtexto=(
-            f"dos {fmt_int_br(volumetria['total_casos'])} casos terminaram em "
-            "acordo — oportunidade de política explícita"
-        ),
-    )
-
-    # KPIs de contexto
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(
-        "Casos analisados",
-        fmt_int_br(volumetria["total_casos"]),
-        help="Total de processos no conjunto histórico usado como baseline.",
-    )
-    c2.metric(
-        "Taxa de êxito do banco",
-        fmt_pct(volumetria["taxa_exito_macro"]),
-        help="Proporção de casos com resultado favorável "
-        "(macro: Improcedência + Extinção).",
-    )
-    c3.metric(
-        "Custo total estimado",
-        fmt_brl_compact(financeiro["custo_total_estimado"]),
-        help="Soma das condenações observadas nos 60k casos.",
-    )
-    c4.metric(
-        "% Acordo hoje",
-        fmt_pct(pct_acordo_hoje, casas=2),
-        help="Política implícita atual = 'defender sempre'. "
-        "Acordos são residuais (<1%).",
-    )
-
-    # ────────────────────────────────────────────────────────
-    # Camada 2 · PROVA
-    # ────────────────────────────────────────────────────────
-    ui.section_divider("Prova · o que sustenta o número")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Distribuição de resultado micro")
-        dist = volumetria["dist_resultado_micro"]
-        df_dist = (
-            pd.DataFrame(
-                {
-                    "resultado": list(dist.keys()),
-                    "proporcao": list(dist.values()),
-                }
-            )
-            .sort_values("proporcao", ascending=True)
-        )
-        df_dist["label"] = df_dist["proporcao"].apply(
-            lambda p: f"{p*100:.1f}%".replace(".", ",")
-        )
-        # "Acordo" em laranja (accent) para ancorar o insight da manchete.
-        cores = [
-            Colors.ACCENT if r == "Acordo" else Colors.TEXT_MUTED
-            for r in df_dist["resultado"]
-        ]
-        fig_dist = go.Figure(
-            go.Bar(
-                x=df_dist["proporcao"],
-                y=df_dist["resultado"],
-                orientation="h",
-                marker_color=cores,
-                text=df_dist["label"],
-                textposition="outside",
-                hovertemplate="<b>%{y}</b><br>Proporção: %{x:.2%}<extra></extra>",
-            )
-        )
-        fig_dist.update_layout(
-            xaxis_title="Proporção dos casos",
-            yaxis_title=None,
-            xaxis_tickformat=".0%",
-            margin=dict(l=10, r=40, t=10, b=10),
-            showlegend=False,
-        )
-        st.plotly_chart(_plotly(fig_dist, height=340), use_container_width=True)
-
-    with col2:
-        st.subheader("Completude probatória × êxito do banco")
-        comp = baseline["completude_vs_exito"]
-        df_comp = pd.DataFrame(
-            [
-                {
-                    "subsidios": int(k),
-                    "taxa_exito": v["taxa_exito"],
-                    "n_casos": v["n_casos"],
-                }
-                for k, v in comp.items()
-            ]
-        ).sort_values("subsidios")
-        df_comp["label"] = df_comp["taxa_exito"].apply(
-            lambda p: f"{p*100:.0f}%"
-        )
-        fig_comp = go.Figure(
-            go.Bar(
-                x=df_comp["subsidios"],
-                y=df_comp["taxa_exito"],
-                marker_color=Colors.ACCENT,
-                text=df_comp["label"],
-                textposition="outside",
-                customdata=df_comp[["n_casos"]],
-                hovertemplate=(
-                    "<b>%{x} subsídios</b><br>"
-                    "Taxa de êxito: %{y:.1%}<br>"
-                    "n casos: %{customdata[0]:,}<extra></extra>"
-                ),
-            )
-        )
-        fig_comp.add_hline(
-            y=0.5,
-            line_dash="dash",
-            line_color=Colors.DANGER,
-            annotation_text="50%",
-            annotation_position="right",
-        )
-        fig_comp.update_layout(
-            xaxis_title="Nº de subsídios (0 a 6)",
-            yaxis_title="Taxa de êxito",
-            yaxis_tickformat=".0%",
-            yaxis_range=[0, 1.1],
-            xaxis=dict(tickmode="linear"),
-            margin=dict(l=10, r=10, t=10, b=10),
-            showlegend=False,
-        )
-        st.plotly_chart(_plotly(fig_comp, height=340), use_container_width=True)
-
-    # Custo total — visualização compacta em 1 coluna full-width
-    st.subheader("Custo total estimado · composição financeira")
-    tabela_fin_compact = pd.DataFrame(
-        [
-            ("Valor médio de causa", fmt_brl(financeiro["valor_causa_medio"])),
-            (
-                "Condenação média (geral)",
-                fmt_brl(financeiro["condenacao_media_geral"]),
-            ),
-            (
-                "Valor médio de acordo",
-                fmt_brl(financeiro["valor_medio_acordo"]),
-            ),
-            (
-                "Custo total estimado",
-                fmt_brl(financeiro["custo_total_estimado"], casas=0),
-            ),
-        ],
-        columns=["Métrica", "Valor"],
-    )
-    st.dataframe(
-        tabela_fin_compact,
-        hide_index=True,
-        use_container_width=True,
-    )
-
-    # ────────────────────────────────────────────────────────
-    # Camada 3 · EXPLORAÇÃO
-    # ────────────────────────────────────────────────────────
-    ui.section_divider("Exploração · detalhes por UF e financeiro")
-
-    with st.expander("Análises detalhadas", expanded=False):
-        tab_uf, tab_fin = st.tabs(["Taxa de êxito por UF", "Financeiro completo"])
-
-        with tab_uf:
-            por_uf = baseline["por_uf"]
-            df_uf = pd.DataFrame(
-                [
-                    {
-                        "uf": uf,
-                        "n_casos": v["n_casos"],
-                        "taxa_exito": v["taxa_exito"],
-                        "valor_causa_medio": v["valor_causa_medio"],
-                    }
-                    for uf, v in por_uf.items()
-                ]
-            )
-            df_uf = df_uf.sort_values("n_casos", ascending=False).head(10)
-            df_uf = df_uf.sort_values("taxa_exito", ascending=True)
-            df_uf["label"] = df_uf["taxa_exito"].apply(
-                lambda p: f"{p*100:.1f}%".replace(".", ",")
-            )
-            fig_uf = go.Figure(
-                go.Bar(
-                    x=df_uf["taxa_exito"],
-                    y=df_uf["uf"],
-                    orientation="h",
-                    marker_color=Colors.ACCENT,
-                    text=df_uf["label"],
-                    textposition="outside",
-                    customdata=df_uf[["n_casos", "valor_causa_medio"]],
-                    hovertemplate=(
-                        "<b>%{y}</b><br>"
-                        "Taxa de êxito: %{x:.1%}<br>"
-                        "n casos: %{customdata[0]:,}<br>"
-                        "Valor médio de causa: R$ %{customdata[1]:,.2f}"
-                        "<extra></extra>"
-                    ),
-                )
-            )
-            fig_uf.add_vline(
-                x=volumetria["taxa_exito_macro"],
-                line_dash="dash",
-                line_color=Colors.TEXT_MUTED,
-                annotation_text=(
-                    f"Média: {volumetria['taxa_exito_macro']:.0%}"
-                ),
-                annotation_position="top",
-            )
-            fig_uf.update_layout(
-                xaxis_title="Taxa de êxito",
-                yaxis_title=None,
-                xaxis_tickformat=".0%",
-                xaxis_range=[0, 1.0],
-                margin=dict(l=10, r=40, t=10, b=10),
-                showlegend=False,
-            )
-            st.plotly_chart(_plotly(fig_uf, height=360), use_container_width=True)
-
-        with tab_fin:
-            st.caption(
-                "Custo total = soma das condenações efetivas observadas nos 60k "
-                "casos. Base de comparação para E02 (Economia vs Baseline)."
-            )
-            st.dataframe(
-                tabela_fin_compact,
-                hide_index=True,
-                use_container_width=True,
-            )
-
-    st.caption(
-        f"Baseline atualizado em {baseline_mtime_iso()} · "
-        "fonte: `data/processed/baseline.json`"
-    )
-
-
-# ============================================================
-# Aba 2 · Aderência
-# ============================================================
-elif view == "Aderência":
+if view == "Aderência":
     st.title("Monitoramento de aderência")
     st.caption("Os advogados estão seguindo a política recomendada?")
 
@@ -566,12 +299,6 @@ elif view == "Aderência":
             "`python -m src.monitor.gerar_sintetico` para gerar."
         )
         st.stop()
-
-    # Badge de fonte da política (discreto, sem emoji)
-    if fonte_politica == "csv":
-        st.info("Fonte da política: CSV do XGBoost")
-    else:
-        st.info("Fonte da política: mock (H2+H3 · DECISOES.md)")
 
     df_f = aplicar_filtros(
         df_pol, flt_ufs, flt_escritorios, flt_subassunto, flt_periodo
@@ -994,7 +721,7 @@ elif view == "Aderência":
 
 
 # ============================================================
-# Aba 3 · Efetividade
+# Aba 2 · Efetividade
 # ============================================================
 elif view == "Efetividade":
     st.title("Monitoramento de efetividade")
@@ -1006,11 +733,6 @@ elif view == "Efetividade":
             "`python -m src.monitor.gerar_sintetico` para gerar."
         )
         st.stop()
-
-    if fonte_politica == "csv":
-        st.info("Fonte da política: CSV do XGBoost")
-    else:
-        st.info("Fonte da política: mock (H2+H3 · DECISOES.md)")
 
     df_f = aplicar_filtros(
         df_pol, flt_ufs, flt_escritorios, flt_subassunto, flt_periodo

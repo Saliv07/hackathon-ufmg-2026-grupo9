@@ -195,6 +195,57 @@ def get_global_css() -> str:
     border-color: {Colors.BORDER} !important;
   }}
 
+  /* Título "Monitoramento" — força uma linha só (sem wrap) */
+  section[data-testid="stSidebar"] .ufmg-sidebar-title {{
+    font-family: {Fonts.PRIMARY} !important;
+    font-size: 19px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em;
+    color: {Colors.TEXT_MAIN} !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 4px 0 14px 0;
+  }}
+
+  /* ─── Radio de navegação como "pills" ──────────────────── */
+  /* Esconde os círculos nativos e transforma os labels em botões */
+  section[data-testid="stSidebar"] .ufmg-nav-radio + div [role="radiogroup"] {{
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    background: {Colors.BG_PANEL};
+    border: 1px solid {Colors.BORDER};
+    border-radius: {Sizes.RADIUS_MD}px;
+    padding: 4px;
+  }}
+  section[data-testid="stSidebar"] .ufmg-nav-radio + div [role="radiogroup"] label {{
+    flex: 1;
+    margin: 0 !important;
+    padding: 8px 12px;
+    border-radius: {Sizes.RADIUS_SM}px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    color: {Colors.TEXT_MUTED} !important;
+    font-family: {Fonts.PRIMARY};
+    font-size: 13px;
+    font-weight: 500;
+  }}
+  /* Esconde o círculo nativo mantendo o label clicável */
+  section[data-testid="stSidebar"] .ufmg-nav-radio + div [role="radiogroup"] label > div:first-child {{
+    display: none !important;
+  }}
+  section[data-testid="stSidebar"] .ufmg-nav-radio + div [role="radiogroup"] label:hover {{
+    background: {Colors.BG_ELEV};
+    color: {Colors.ACCENT} !important;
+  }}
+  section[data-testid="stSidebar"] .ufmg-nav-radio + div [role="radiogroup"] label:has(input:checked) {{
+    background: {Colors.BG_ELEV};
+    color: {Colors.ACCENT} !important;
+    border: 1px solid rgba(255, 174, 53, 0.35);
+  }}
+
   /* ─── KPI / metric ─────────────────────────────────────── */
   [data-testid="stMetric"] {{
     background: {Colors.BG_PANEL};
