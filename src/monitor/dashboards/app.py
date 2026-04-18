@@ -5,21 +5,22 @@ Requisitos 4 (Aderência) e 5 (Efetividade) do Hackathon UFMG / Enter 2026.
 Frente: monitoramento (Matheus / Nekark Data Intelligence).
 Branch: vilas.
 
-Este arquivo implementa:
-    - Aba "Visão Geral"  -> completa, alimentada pelo baseline.json + casos_60k.
-                             Usa baseline imutável; NÃO é afetada por filtros globais.
-    - Aba "Aderência"    -> KPIs A01/A02/A20 + drift temporal A18, razões A13,
-                             rankings A05/A06, segmentação A08/A04, painel de alertas.
-    - Aba "Efetividade"  -> Potencial vs Realizada vs Gap + sensibilidade +
-                             redistribuição E05 + E09 temporal + E06 por completude.
+Arquitetura visual (após merge com a plataforma do advogado):
+    - Tema dark unificado (tokens em `theme_banco_ufmg`, fonte Inter/JetBrains Mono,
+      accent laranja #FFAE35).
+    - Cada aba em 3 camadas de leitura:
+        Camada 1 · MANCHETE    -> `ui.headline(...)` (o insight em uma frase)
+        Camada 2 · PROVA       -> 2-3 gráficos essenciais que sustentam a manchete
+        Camada 3 · EXPLORAÇÃO  -> `st.expander(...)` com detalhes, rankings,
+                                   segmentações, alertas completos
+
+Abas:
+    - Visão Geral  -> baseline imutável (60k casos, pré-política).
+    - Aderência    -> KPIs A01/A02/A20 + drift temporal + rankings + alertas.
+    - Efetividade  -> Potencial vs Realizada vs Gap + sensibilidade + redistribuição.
 
 Filtros globais (sidebar): UF, escritório, sub-assunto e período aplicam-se a
-Aderência e Efetividade (Visão Geral permanece ancorada ao baseline).
-
-Integração com outras frentes:
-    - Quando `data/processed/politica_output.csv` (output do XGBoost) existir,
-      `get_df_com_politica()` faz merge automático. Enquanto não existe, mock
-      (H2 + H3 do DECISOES.md) já está materializado em casos_enriquecidos.
+Aderência e Efetividade. Visão Geral permanece ancorada ao baseline.
 """
 from __future__ import annotations
 
@@ -40,6 +41,16 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.monitor import counterfactual, metrics_adherence, metrics_effectiveness
+from src.monitor.dashboards import components as ui
+from src.monitor.dashboards.theme_banco_ufmg import (
+    Colors,
+    apply_theme,
+    fmt_brl,
+    fmt_brl_compact,
+    fmt_int_br,
+    fmt_pct,
+    get_plotly_layout,
+)
 from src.monitor.paths import (
     BASELINE_JSON,
     CASOS_60K,
@@ -49,22 +60,15 @@ from src.monitor.paths import (
 
 
 # ============================================================
-# Configuração global
+# Configuração global + tema
 # ============================================================
 st.set_page_config(
     page_title="Monitoramento UFMG",
     layout="wide",
-    page_icon="⚖️",
+    page_icon="⚖️",  # favicon do browser — não aparece dentro do app
 )
+apply_theme()
 
-# Paleta institucional (banco + justiça). Evita vermelho puro em KPIs
-# para não alarmar visualmente antes do contexto ser lido.
-COR_PRIMARIA = "#1F4E79"
-COR_SECUNDARIA = "#4A90C2"
-COR_DESTAQUE = "#E8A33D"
-COR_ALERTA = "#C0392B"
-COR_NEUTRO = "#7F8C8D"
-COR_OK = "#27AE60"
 
 # Thresholds de severidade para A06 (aderência por escritório) — alinhados
 # com os alertas P0 definidos em metrics_adherence.alertas_ativos.
@@ -72,44 +76,13 @@ TH_ADESAO_OK = 0.85
 TH_ADESAO_ALERTA = 0.70
 
 
-# ============================================================
-# Helpers de formatação
-# ============================================================
-def fmt_brl(valor: float, casas: int = 2) -> str:
-    """Formata número como R$ brasileiro: milhar com '.', decimal com ','."""
-    if valor is None or (isinstance(valor, float) and np.isnan(valor)):
-        return "—"
-    sinal = "-" if valor < 0 else ""
-    valor = abs(valor)
-    txt = f"{valor:,.{casas}f}"
-    # troca separadores: 1,234,567.89 -> 1.234.567,89
-    txt = txt.replace(",", "§").replace(".", ",").replace("§", ".")
-    return f"{sinal}R$ {txt}"
-
-
-def fmt_brl_curto(valor: float) -> str:
-    """R$ em milhões (1 casa). Usado em KPIs grandes."""
-    if valor is None or (isinstance(valor, float) and np.isnan(valor)):
-        return "—"
-    sinal = "-" if valor < 0 else ""
-    v = abs(valor)
-    if v >= 1e9:
-        return f"{sinal}R$ {v/1e9:.2f}B".replace(".", ",")
-    if v >= 1e6:
-        return f"{sinal}R$ {v/1e6:.1f}M".replace(".", ",")
-    if v >= 1e3:
-        return f"{sinal}R$ {v/1e3:.0f}K".replace(".", ",")
-    return fmt_brl(valor, casas=0)
-
-
-def fmt_int_br(valor: int) -> str:
-    return f"{int(valor):,}".replace(",", ".")
-
-
-def fmt_pct(valor: float, casas: int = 1) -> str:
-    if valor is None or (isinstance(valor, float) and np.isnan(valor)):
-        return "—"
-    return f"{valor*100:.{casas}f}%".replace(".", ",")
+def _plotly(fig: go.Figure, height: int | None = None) -> go.Figure:
+    """Aplica o layout padrão do tema (dark, fontes, paleta)."""
+    layout = get_plotly_layout()
+    if height is not None:
+        layout["height"] = height
+    fig.update_layout(**layout)
+    return fig
 
 
 # ============================================================
@@ -157,7 +130,6 @@ def get_df_com_politica() -> tuple[pd.DataFrame | None, str]:
         politica = pd.read_csv(csv_path)
         merged = df_enr.merge(politica, on="numero_processo", how="left")
         return merged, "csv"
-    # Fallback: mock já está nas colunas acao_recomendada e valor_acordo_recomendado
     return df_enr, "mock"
 
 
@@ -217,10 +189,9 @@ def _filtros_ativos_badge(
 
     c1, c2 = st.columns([6, 1])
     with c1:
-        st.info("📊 Filtros ativos: " + " · ".join(partes), icon="🔍")
+        st.info("Filtros ativos: " + " · ".join(partes))
     with c2:
-        if st.button("↩️ Resetar", use_container_width=True):
-            # Limpa keys dos widgets e rerun.
+        if st.button("Resetar", use_container_width=True):
             for k in ["flt_ufs", "flt_escritorios", "flt_subassunto", "flt_periodo"]:
                 if k in st.session_state:
                     del st.session_state[k]
@@ -228,18 +199,18 @@ def _filtros_ativos_badge(
 
 
 # ============================================================
-# Bootstrap (fora de funções para rodar na primeira chamada)
+# Bootstrap (primeira chamada)
 # ============================================================
 baseline = load_baseline()
 df = load_casos()
 df_pol, fonte_politica = get_df_com_politica()
-df_enr = df_pol  # alias para retrocompatibilidade da Visão Geral
+df_enr = df_pol  # alias
 
 
 # ============================================================
 # Sidebar
 # ============================================================
-st.sidebar.title("⚖️ Monitoramento")
+st.sidebar.title("Monitoramento")
 st.sidebar.caption("Política de Acordos · Banco UFMG")
 
 view = st.sidebar.radio(
@@ -249,7 +220,6 @@ view = st.sidebar.radio(
 
 st.sidebar.divider()
 
-# ---- Filtros globais (afetam Aderência e Efetividade) ----
 flt_ufs: list[str] = []
 flt_escritorios: list[str] = []
 flt_subassunto: str = "Todos"
@@ -258,7 +228,7 @@ data_min_global: date = date(2025, 4, 1)
 data_max_global: date = date(2026, 3, 31)
 
 if df_pol is not None and view != "Visão Geral":
-    with st.sidebar.expander("🔍 Filtros", expanded=False):
+    with st.sidebar.expander("Filtros", expanded=False):
         uf_opts = sorted(df_pol["uf"].dropna().unique().tolist())
         esc_opts = sorted(df_pol["escritorio_id"].dropna().unique().tolist())
 
@@ -282,7 +252,6 @@ if df_pol is not None and view != "Visão Geral":
             value="Todos",
             key="flt_subassunto",
         )
-        # Período: defaults vêm dos próprios dados
         data_min_global = pd.Timestamp(df_pol["data_decisao"].min()).date()
         data_max_global = pd.Timestamp(df_pol["data_decisao"].max()).date()
         flt_periodo = st.date_input(
@@ -293,7 +262,6 @@ if df_pol is not None and view != "Visão Geral":
             key="flt_periodo",
             format="DD/MM/YYYY",
         )
-        # Streamlit retorna tuple quando há 2 datas, date quando só 1 selecionada
         if isinstance(flt_periodo, tuple) and len(flt_periodo) == 2:
             pass
         else:
@@ -334,48 +302,64 @@ else:
 
 
 # ============================================================
-# Aba 1 · Visão Geral
+# Aba 1 · Visão Geral (baseline imutável)
 # ============================================================
 if view == "Visão Geral":
     st.title("Banco UFMG · Política de Acordos")
     st.caption("Baseline pré-política · 60.000 casos históricos")
 
-    # ---- 4 KPIs no topo ----
     volumetria = baseline["volumetria"]
     financeiro = baseline["financeiro"]
     pct_acordo_hoje = volumetria["dist_resultado_micro"].get("Acordo", 0.0)
 
+    # ────────────────────────────────────────────────────────
+    # Camada 1 · MANCHETE
+    # ────────────────────────────────────────────────────────
+    ui.headline(
+        texto_insight=(
+            "Banco UFMG opera hoje com política implícita de defender sempre"
+        ),
+        valor_grande=fmt_pct(pct_acordo_hoje, casas=2),
+        subtexto=(
+            f"dos {fmt_int_br(volumetria['total_casos'])} casos terminaram em "
+            "acordo — oportunidade de política explícita"
+        ),
+    )
+
+    # KPIs de contexto
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(
-        "Casos Analisados",
+        "Casos analisados",
         fmt_int_br(volumetria["total_casos"]),
         help="Total de processos no conjunto histórico usado como baseline.",
     )
     c2.metric(
-        "Taxa de Êxito Banco",
+        "Taxa de êxito do banco",
         fmt_pct(volumetria["taxa_exito_macro"]),
-        help="Proporção de casos onde o banco obteve resultado favorável "
+        help="Proporção de casos com resultado favorável "
         "(macro: Improcedência + Extinção).",
     )
     c3.metric(
-        "Custo Total Estimado",
-        fmt_brl_curto(financeiro["custo_total_estimado"]),
+        "Custo total estimado",
+        fmt_brl_compact(financeiro["custo_total_estimado"]),
         help="Soma das condenações observadas nos 60k casos.",
     )
     c4.metric(
-        "% Acordo Hoje",
+        "% Acordo hoje",
         fmt_pct(pct_acordo_hoje, casas=2),
-        help="Política implícita atual = 'defender sempre'. Acordos são "
-        "residuais (<1%).",
+        help="Política implícita atual = 'defender sempre'. "
+        "Acordos são residuais (<1%).",
     )
 
-    st.divider()
+    # ────────────────────────────────────────────────────────
+    # Camada 2 · PROVA
+    # ────────────────────────────────────────────────────────
+    ui.section_divider("Prova · o que sustenta o número")
 
-    # ---- Linha 1: 2 gráficos ----
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Distribuição de Resultado Micro")
+        st.subheader("Distribuição de resultado micro")
         dist = volumetria["dist_resultado_micro"]
         df_dist = (
             pd.DataFrame(
@@ -389,9 +373,9 @@ if view == "Visão Geral":
         df_dist["label"] = df_dist["proporcao"].apply(
             lambda p: f"{p*100:.1f}%".replace(".", ",")
         )
-        # Destacamos "Acordo" em âmbar para dar contexto ao 0,47%.
+        # "Acordo" em laranja (accent) para ancorar o insight da manchete.
         cores = [
-            COR_DESTAQUE if r == "Acordo" else COR_PRIMARIA
+            Colors.ACCENT if r == "Acordo" else Colors.TEXT_MUTED
             for r in df_dist["resultado"]
         ]
         fig_dist = go.Figure(
@@ -410,13 +394,12 @@ if view == "Visão Geral":
             yaxis_title=None,
             xaxis_tickformat=".0%",
             margin=dict(l=10, r=40, t=10, b=10),
-            height=340,
             showlegend=False,
         )
-        st.plotly_chart(fig_dist, use_container_width=True)
+        st.plotly_chart(_plotly(fig_dist, height=340), use_container_width=True)
 
     with col2:
-        st.subheader("Completude Probatória × Êxito do Banco")
+        st.subheader("Completude probatória × êxito do banco")
         comp = baseline["completude_vs_exito"]
         df_comp = pd.DataFrame(
             [
@@ -435,7 +418,7 @@ if view == "Visão Geral":
             go.Bar(
                 x=df_comp["subsidios"],
                 y=df_comp["taxa_exito"],
-                marker_color=COR_PRIMARIA,
+                marker_color=Colors.ACCENT,
                 text=df_comp["label"],
                 textposition="outside",
                 customdata=df_comp[["n_casos"]],
@@ -449,7 +432,7 @@ if view == "Visão Geral":
         fig_comp.add_hline(
             y=0.5,
             line_dash="dash",
-            line_color=COR_ALERTA,
+            line_color=Colors.DANGER,
             annotation_text="50%",
             annotation_position="right",
         )
@@ -460,102 +443,109 @@ if view == "Visão Geral":
             yaxis_range=[0, 1.1],
             xaxis=dict(tickmode="linear"),
             margin=dict(l=10, r=10, t=10, b=10),
-            height=340,
             showlegend=False,
         )
-        st.plotly_chart(fig_comp, use_container_width=True)
+        st.plotly_chart(_plotly(fig_comp, height=340), use_container_width=True)
 
-    st.divider()
-
-    # ---- Linha 2: Financeiro (tabela) + UF (barras) ----
-    col3, col4 = st.columns(2)
-
-    with col3:
-        st.subheader("Resumo Financeiro")
-        tabela_fin = pd.DataFrame(
-            [
-                ("Valor médio de causa", fmt_brl(financeiro["valor_causa_medio"])),
-                (
-                    "Condenação média (geral)",
-                    fmt_brl(financeiro["condenacao_media_geral"]),
-                ),
-                (
-                    "Valor médio de acordo",
-                    fmt_brl(financeiro["valor_medio_acordo"]),
-                ),
-                (
-                    "Custo total estimado",
-                    fmt_brl(financeiro["custo_total_estimado"], casas=0),
-                ),
-            ],
-            columns=["Métrica", "Valor"],
-        )
-        st.dataframe(
-            tabela_fin,
-            hide_index=True,
-            use_container_width=True,
-        )
-        st.caption(
-            "Custo total = soma das condenações efetivas observadas nos 60k "
-            "casos. Base de comparação para E02 (Economia vs Baseline)."
-        )
-
-    with col4:
-        st.subheader("Taxa de Êxito por UF (Top 10 por volume)")
-        por_uf = baseline["por_uf"]
-        df_uf = pd.DataFrame(
-            [
-                {
-                    "uf": uf,
-                    "n_casos": v["n_casos"],
-                    "taxa_exito": v["taxa_exito"],
-                    "valor_causa_medio": v["valor_causa_medio"],
-                }
-                for uf, v in por_uf.items()
-            ]
-        )
-        df_uf = df_uf.sort_values("n_casos", ascending=False).head(10)
-        df_uf = df_uf.sort_values("taxa_exito", ascending=True)
-        df_uf["label"] = df_uf["taxa_exito"].apply(
-            lambda p: f"{p*100:.1f}%".replace(".", ",")
-        )
-        fig_uf = go.Figure(
-            go.Bar(
-                x=df_uf["taxa_exito"],
-                y=df_uf["uf"],
-                orientation="h",
-                marker_color=COR_SECUNDARIA,
-                text=df_uf["label"],
-                textposition="outside",
-                customdata=df_uf[["n_casos", "valor_causa_medio"]],
-                hovertemplate=(
-                    "<b>%{y}</b><br>"
-                    "Taxa de êxito: %{x:.1%}<br>"
-                    "n casos: %{customdata[0]:,}<br>"
-                    "Valor médio de causa: R$ %{customdata[1]:,.2f}"
-                    "<extra></extra>"
-                ),
-            )
-        )
-        fig_uf.add_vline(
-            x=volumetria["taxa_exito_macro"],
-            line_dash="dash",
-            line_color=COR_NEUTRO,
-            annotation_text=(
-                f"Média: {volumetria['taxa_exito_macro']:.0%}"
+    # Custo total — visualização compacta em 1 coluna full-width
+    st.subheader("Custo total estimado · composição financeira")
+    tabela_fin_compact = pd.DataFrame(
+        [
+            ("Valor médio de causa", fmt_brl(financeiro["valor_causa_medio"])),
+            (
+                "Condenação média (geral)",
+                fmt_brl(financeiro["condenacao_media_geral"]),
             ),
-            annotation_position="top",
-        )
-        fig_uf.update_layout(
-            xaxis_title="Taxa de êxito",
-            yaxis_title=None,
-            xaxis_tickformat=".0%",
-            xaxis_range=[0, 1.0],
-            margin=dict(l=10, r=40, t=10, b=10),
-            height=360,
-            showlegend=False,
-        )
-        st.plotly_chart(fig_uf, use_container_width=True)
+            (
+                "Valor médio de acordo",
+                fmt_brl(financeiro["valor_medio_acordo"]),
+            ),
+            (
+                "Custo total estimado",
+                fmt_brl(financeiro["custo_total_estimado"], casas=0),
+            ),
+        ],
+        columns=["Métrica", "Valor"],
+    )
+    st.dataframe(
+        tabela_fin_compact,
+        hide_index=True,
+        use_container_width=True,
+    )
+
+    # ────────────────────────────────────────────────────────
+    # Camada 3 · EXPLORAÇÃO
+    # ────────────────────────────────────────────────────────
+    ui.section_divider("Exploração · detalhes por UF e financeiro")
+
+    with st.expander("Análises detalhadas", expanded=False):
+        tab_uf, tab_fin = st.tabs(["Taxa de êxito por UF", "Financeiro completo"])
+
+        with tab_uf:
+            por_uf = baseline["por_uf"]
+            df_uf = pd.DataFrame(
+                [
+                    {
+                        "uf": uf,
+                        "n_casos": v["n_casos"],
+                        "taxa_exito": v["taxa_exito"],
+                        "valor_causa_medio": v["valor_causa_medio"],
+                    }
+                    for uf, v in por_uf.items()
+                ]
+            )
+            df_uf = df_uf.sort_values("n_casos", ascending=False).head(10)
+            df_uf = df_uf.sort_values("taxa_exito", ascending=True)
+            df_uf["label"] = df_uf["taxa_exito"].apply(
+                lambda p: f"{p*100:.1f}%".replace(".", ",")
+            )
+            fig_uf = go.Figure(
+                go.Bar(
+                    x=df_uf["taxa_exito"],
+                    y=df_uf["uf"],
+                    orientation="h",
+                    marker_color=Colors.ACCENT,
+                    text=df_uf["label"],
+                    textposition="outside",
+                    customdata=df_uf[["n_casos", "valor_causa_medio"]],
+                    hovertemplate=(
+                        "<b>%{y}</b><br>"
+                        "Taxa de êxito: %{x:.1%}<br>"
+                        "n casos: %{customdata[0]:,}<br>"
+                        "Valor médio de causa: R$ %{customdata[1]:,.2f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+            fig_uf.add_vline(
+                x=volumetria["taxa_exito_macro"],
+                line_dash="dash",
+                line_color=Colors.TEXT_MUTED,
+                annotation_text=(
+                    f"Média: {volumetria['taxa_exito_macro']:.0%}"
+                ),
+                annotation_position="top",
+            )
+            fig_uf.update_layout(
+                xaxis_title="Taxa de êxito",
+                yaxis_title=None,
+                xaxis_tickformat=".0%",
+                xaxis_range=[0, 1.0],
+                margin=dict(l=10, r=40, t=10, b=10),
+                showlegend=False,
+            )
+            st.plotly_chart(_plotly(fig_uf, height=360), use_container_width=True)
+
+        with tab_fin:
+            st.caption(
+                "Custo total = soma das condenações efetivas observadas nos 60k "
+                "casos. Base de comparação para E02 (Economia vs Baseline)."
+            )
+            st.dataframe(
+                tabela_fin_compact,
+                hide_index=True,
+                use_container_width=True,
+            )
 
     st.caption(
         f"Baseline atualizado em {baseline_mtime_iso()} · "
@@ -567,7 +557,7 @@ if view == "Visão Geral":
 # Aba 2 · Aderência
 # ============================================================
 elif view == "Aderência":
-    st.title("Monitoramento de Aderência")
+    st.title("Monitoramento de aderência")
     st.caption("Os advogados estão seguindo a política recomendada?")
 
     if df_pol is None:
@@ -577,13 +567,12 @@ elif view == "Aderência":
         )
         st.stop()
 
-    # Badge com fonte da política (discreto)
+    # Badge de fonte da política (discreto, sem emoji)
     if fonte_politica == "csv":
-        st.info("Fonte da política: CSV do XGBoost", icon="🤖")
+        st.info("Fonte da política: CSV do XGBoost")
     else:
-        st.info("Fonte da política: mock (H2+H3 · DECISOES.md)", icon="🧪")
+        st.info("Fonte da política: mock (H2+H3 · DECISOES.md)")
 
-    # Aplica filtros globais
     df_f = aplicar_filtros(
         df_pol, flt_ufs, flt_escritorios, flt_subassunto, flt_periodo
     )
@@ -596,13 +585,29 @@ elif view == "Aderência":
         st.warning("Nenhum caso após aplicar os filtros. Ajuste a seleção.")
         st.stop()
 
-    # ---- KPIs topo (4 colunas) ----
+    # ────────────────────────────────────────────────────────
+    # Métricas-base (usadas na manchete e nos KPIs)
+    # ────────────────────────────────────────────────────────
     tsg = metrics_adherence.taxa_seguimento_global(df_f)
     tov = metrics_adherence.taxa_override(df_f)
     adh_pond = metrics_adherence.aderencia_ponderada_por_valor(df_f)
-    gap_pond = adh_pond - tsg  # positivo = R$ mais aderente que N; negativo = viés em caros
+    gap_pond = adh_pond - tsg
 
-    # % overrides justificados: razões que NÃO são "discordancia_score" nem "outro"
+    por_adv = metrics_adherence.aderencia_por_advogado(df_f)
+    criticos = por_adv[por_adv["aderencia"] < 0.60]
+    n_criticos = int(len(criticos))
+    n_escr_criticos = int(criticos["escritorio"].nunique()) if n_criticos else 0
+
+    # Concentração de risco: quanto do R$ em causa os críticos respondem
+    if n_criticos > 0:
+        ids_crit = criticos.index.tolist()
+        valor_crit = float(df_f.loc[df_f["advogado_id"].isin(ids_crit), "valor_causa"].sum())
+        valor_tot = float(df_f["valor_causa"].sum())
+        pct_risco_concentrado = valor_crit / valor_tot if valor_tot > 0 else 0.0
+    else:
+        pct_risco_concentrado = 0.0
+
+    # Overrides justificados
     overrides = df_f.loc[df_f["aderente"] == 0, "razao_override"]
     n_over = int(overrides.notna().sum())
     if n_over > 0:
@@ -613,127 +618,106 @@ elif view == "Aderência":
     else:
         pct_justif = 0.0
 
+    # ────────────────────────────────────────────────────────
+    # Camada 1 · MANCHETE (dinâmica)
+    # ────────────────────────────────────────────────────────
+    if n_criticos > 0 and n_escr_criticos > 0:
+        insight = (
+            f"{n_criticos} advogado(s) concentrado(s) em {n_escr_criticos} "
+            f"escritório(s) respondem por {pct_risco_concentrado*100:.0f}% "
+            "do risco financeiro"
+        )
+        subtxt = (
+            f"Taxa global de aderência à política — meta mínima 85%. "
+            f"{fmt_int_br(n_over)} override(s) no recorte, "
+            f"{pct_justif*100:.0f}% justificados."
+        )
+    else:
+        insight = "Nenhum advogado crítico (<60%) no recorte atual"
+        subtxt = "Taxa global de aderência à política — meta mínima 85%"
+
+    ui.headline(
+        texto_insight=insight,
+        valor_grande=fmt_pct(tsg),
+        subtexto=subtxt,
+    )
+
+    # KPIs-suporte (sem emojis; cor no delta quando faz sentido)
     k1, k2, k3, k4 = st.columns(4)
     k1.metric(
-        "Taxa de Seguimento (A01)",
+        "Taxa de seguimento",
         fmt_pct(tsg),
-        help="% de casos onde ação tomada == ação recomendada.",
+        help="A01 · % de casos onde ação tomada == ação recomendada.",
     )
     k2.metric(
-        "Taxa de Override (A02)",
+        "Taxa de override",
         fmt_pct(tov),
-        help="Complemento da A01.",
+        help="A02 · complemento da taxa de seguimento.",
     )
     k3.metric(
-        "Aderência Ponderada R$ (A20)",
+        "Aderência ponderada pelo risco financeiro",
         fmt_pct(adh_pond),
-        delta=f"{gap_pond*100:+.1f} pp vs A01".replace(".", ","),
+        delta=f"{gap_pond*100:+.1f} pp vs seguimento".replace(".", ","),
         delta_color="normal" if gap_pond >= 0 else "inverse",
-        help="R$ seguindo política / R$ total. Se cair abaixo de A01, há "
-        "viés de override em casos de alto valor.",
+        help="A20 · R$ seguindo política / R$ total. Abaixo do seguimento = "
+        "viés de override em casos caros.",
     )
     k4.metric(
-        "Overrides Justificados",
+        "Overrides justificados",
         fmt_pct(pct_justif),
-        help="Proporção de overrides com razão = info_nova, "
-        "neg_em_andamento ou erro_ferramenta. "
-        "discordancia_score e outro NÃO contam como justificados.",
+        help="Razões válidas: info_nova, neg_em_andamento, erro_ferramenta. "
+        "discordancia_score e outro NÃO contam.",
     )
 
-    st.divider()
+    # ────────────────────────────────────────────────────────
+    # Camada 2 · PROVA — 3 gráficos essenciais
+    # ────────────────────────────────────────────────────────
+    ui.section_divider("Prova · o que sustenta o número")
 
-    # ---- Linha 1: drift temporal (A18) + razões override (A13) ----
-    l1c1, l1c2 = st.columns(2)
-
-    with l1c1:
-        st.subheader("Drift Temporal da Aderência (A18)")
-        serie = metrics_adherence.drift_temporal_aderencia(df_f, freq="ME")
-        df_drift = serie.reset_index()
-        df_drift.columns = ["mes", "aderencia"]
-        fig_drift = go.Figure()
-        # Banda de referência 70-85% (alerta / saudável)
-        fig_drift.add_hrect(
-            y0=TH_ADESAO_ALERTA, y1=TH_ADESAO_OK,
-            fillcolor=COR_DESTAQUE, opacity=0.12,
-            line_width=0,
-            annotation_text="zona saudável 70-85%",
-            annotation_position="top left",
+    # Prova 1: evolução ao longo do tempo (era "drift temporal A18")
+    st.subheader("Evolução ao longo do tempo")
+    serie = metrics_adherence.drift_temporal_aderencia(df_f, freq="ME")
+    df_drift = serie.reset_index()
+    df_drift.columns = ["mes", "aderencia"]
+    fig_drift = go.Figure()
+    fig_drift.add_hrect(
+        y0=TH_ADESAO_ALERTA, y1=TH_ADESAO_OK,
+        fillcolor=Colors.ACCENT, opacity=0.08,
+        line_width=0,
+        annotation_text="Zona de atenção 70-85%",
+        annotation_position="top left",
+    )
+    fig_drift.add_trace(
+        go.Scatter(
+            x=df_drift["mes"],
+            y=df_drift["aderencia"],
+            mode="lines+markers",
+            line=dict(color=Colors.ACCENT, width=3),
+            marker=dict(size=8, color=Colors.ACCENT),
+            hovertemplate="<b>%{x|%b/%Y}</b><br>Aderência: %{y:.1%}<extra></extra>",
         )
-        fig_drift.add_trace(
-            go.Scatter(
-                x=df_drift["mes"],
-                y=df_drift["aderencia"],
-                mode="lines+markers",
-                line=dict(color=COR_PRIMARIA, width=3),
-                marker=dict(size=8, color=COR_PRIMARIA),
-                hovertemplate="<b>%{x|%b/%Y}</b><br>Aderência: %{y:.1%}<extra></extra>",
-            )
-        )
-        fig_drift.add_hline(
-            y=TH_ADESAO_ALERTA, line_dash="dot", line_color=COR_ALERTA, opacity=0.5,
-        )
-        fig_drift.add_hline(
-            y=TH_ADESAO_OK, line_dash="dot", line_color=COR_OK, opacity=0.5,
-        )
-        fig_drift.update_layout(
-            xaxis_title=None,
-            yaxis_title="Aderência mensal",
-            yaxis_tickformat=".0%",
-            yaxis_range=[0.5, 1.0],
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=360,
-            showlegend=False,
-        )
-        st.plotly_chart(fig_drift, use_container_width=True)
+    )
+    fig_drift.add_hline(
+        y=TH_ADESAO_ALERTA, line_dash="dot", line_color=Colors.DANGER, opacity=0.6,
+    )
+    fig_drift.add_hline(
+        y=TH_ADESAO_OK, line_dash="dot", line_color=Colors.SUCCESS, opacity=0.6,
+    )
+    fig_drift.update_layout(
+        xaxis_title=None,
+        yaxis_title="Aderência mensal",
+        yaxis_tickformat=".0%",
+        yaxis_range=[0.5, 1.0],
+        margin=dict(l=10, r=10, t=10, b=10),
+        showlegend=False,
+    )
+    st.plotly_chart(_plotly(fig_drift, height=340), use_container_width=True)
 
-    with l1c2:
-        st.subheader("Distribuição das Razões de Override (A13)")
-        razoes = metrics_adherence.distribuicao_razoes_override(df_f)
-        if razoes.empty:
-            st.info("Nenhum override no recorte atual.")
-        else:
-            df_raz = razoes.reset_index()
-            df_raz.columns = ["razao", "proporcao"]
-            df_raz = df_raz.sort_values("proporcao", ascending=True)
-            df_raz["label"] = df_raz["proporcao"].apply(
-                lambda p: f"{p*100:.1f}%".replace(".", ",")
-            )
-            # Destaca "discordancia_score" (não-justificada) em vermelho
-            cores_raz = [
-                COR_ALERTA if r == "discordancia_score"
-                else COR_NEUTRO if r == "outro"
-                else COR_PRIMARIA
-                for r in df_raz["razao"]
-            ]
-            fig_raz = go.Figure(
-                go.Bar(
-                    x=df_raz["proporcao"],
-                    y=df_raz["razao"],
-                    orientation="h",
-                    marker_color=cores_raz,
-                    text=df_raz["label"],
-                    textposition="outside",
-                    hovertemplate="<b>%{y}</b><br>%{x:.1%}<extra></extra>",
-                )
-            )
-            fig_raz.update_layout(
-                xaxis_title="Proporção dos overrides",
-                yaxis_title=None,
-                xaxis_tickformat=".0%",
-                margin=dict(l=10, r=40, t=10, b=10),
-                height=360,
-                showlegend=False,
-            )
-            st.plotly_chart(fig_raz, use_container_width=True)
+    # Prova 2 & 3 · lado a lado: ranking pior + aderência por escritório
+    p1, p2 = st.columns(2)
 
-    st.divider()
-
-    # ---- Linha 2: ranking advogados (A05) + aderência por escritório (A06) ----
-    l2c1, l2c2 = st.columns(2)
-
-    with l2c1:
-        st.subheader("Top 10 Advogados com Pior Aderência (A05)")
-        por_adv = metrics_adherence.aderencia_por_advogado(df_f)
+    with p1:
+        st.subheader("Top 10 advogados com pior aderência")
         top_bad = por_adv.head(10).reset_index()
         top_bad = top_bad.sort_values("aderencia", ascending=True)
         top_bad["label"] = top_bad["aderencia"].apply(
@@ -744,7 +728,7 @@ elif view == "Aderência":
                 x=top_bad["aderencia"],
                 y=top_bad["advogado_id"],
                 orientation="h",
-                marker_color=COR_ALERTA,
+                marker_color=Colors.DANGER,
                 text=top_bad["label"],
                 textposition="outside",
                 customdata=top_bad[["escritorio", "n_casos"]],
@@ -757,8 +741,8 @@ elif view == "Aderência":
             )
         )
         fig_adv.add_vline(
-            x=0.60, line_dash="dash", line_color=COR_ALERTA,
-            annotation_text="Threshold P0 (60%)",
+            x=0.60, line_dash="dash", line_color=Colors.DANGER,
+            annotation_text="Limite urgente (60%)",
             annotation_position="top",
         )
         fig_adv.update_layout(
@@ -767,19 +751,18 @@ elif view == "Aderência":
             xaxis_tickformat=".0%",
             xaxis_range=[0, 1.0],
             margin=dict(l=10, r=40, t=10, b=10),
-            height=380,
             showlegend=False,
         )
-        st.plotly_chart(fig_adv, use_container_width=True)
+        st.plotly_chart(_plotly(fig_adv, height=380), use_container_width=True)
 
-    with l2c2:
-        st.subheader("Aderência por Escritório (A06)")
+    with p2:
+        st.subheader("Aderência por escritório")
         por_esc = metrics_adherence.aderencia_por_escritorio(df_f).reset_index()
         por_esc = por_esc.sort_values("aderencia", ascending=True)
         cores_esc = [
-            COR_OK if a >= TH_ADESAO_OK
-            else COR_DESTAQUE if a >= TH_ADESAO_ALERTA
-            else COR_ALERTA
+            Colors.SUCCESS if a >= TH_ADESAO_OK
+            else Colors.WARNING if a >= TH_ADESAO_ALERTA
+            else Colors.DANGER
             for a in por_esc["aderencia"]
         ]
         por_esc["label"] = por_esc["aderencia"].apply(
@@ -802,10 +785,10 @@ elif view == "Aderência":
             )
         )
         fig_esc.add_hline(
-            y=TH_ADESAO_OK, line_dash="dot", line_color=COR_OK, opacity=0.6,
+            y=TH_ADESAO_OK, line_dash="dot", line_color=Colors.SUCCESS, opacity=0.6,
         )
         fig_esc.add_hline(
-            y=TH_ADESAO_ALERTA, line_dash="dot", line_color=COR_ALERTA, opacity=0.6,
+            y=TH_ADESAO_ALERTA, line_dash="dot", line_color=Colors.DANGER, opacity=0.6,
         )
         fig_esc.update_layout(
             xaxis_title=None,
@@ -813,131 +796,208 @@ elif view == "Aderência":
             yaxis_tickformat=".0%",
             yaxis_range=[0, 1.05],
             margin=dict(l=10, r=10, t=10, b=10),
-            height=380,
             showlegend=False,
         )
-        st.plotly_chart(fig_esc, use_container_width=True)
+        st.plotly_chart(_plotly(fig_esc, height=380), use_container_width=True)
 
-    st.divider()
+    # ────────────────────────────────────────────────────────
+    # Camada 3 · EXPLORAÇÃO (expander)
+    # ────────────────────────────────────────────────────────
+    ui.section_divider("Exploração · segmentações e alertas completos")
 
-    # ---- Linha 3: segmentação (A08 + A04) ----
-    l3c1, l3c2 = st.columns(2)
-
-    with l3c1:
-        st.subheader("Aderência por Faixa de Valor (A08) · P0")
-        por_fx = metrics_adherence.aderencia_por_faixa_valor(df_f).reset_index()
-        por_fx.columns = ["faixa_valor", "aderencia"]
-        # Ordem lógica: Baixo, Médio, Alto
-        ordem = ["Baixo", "Médio", "Alto"]
-        por_fx["faixa_valor"] = pd.Categorical(
-            por_fx["faixa_valor"], categories=ordem, ordered=True,
-        )
-        por_fx = por_fx.sort_values("faixa_valor")
-        por_fx["label"] = por_fx["aderencia"].apply(
-            lambda p: f"{p*100:.1f}%".replace(".", ",")
-        )
-        cores_fx = [
-            COR_OK if a >= TH_ADESAO_OK
-            else COR_DESTAQUE if a >= TH_ADESAO_ALERTA
-            else COR_ALERTA
-            for a in por_fx["aderencia"]
-        ]
-        fig_fx = go.Figure(
-            go.Bar(
-                x=por_fx["faixa_valor"].astype(str),
-                y=por_fx["aderencia"],
-                marker_color=cores_fx,
-                text=por_fx["label"],
-                textposition="outside",
-            )
-        )
-        fig_fx.add_hline(
-            y=TH_ADESAO_ALERTA, line_dash="dot", line_color=COR_ALERTA, opacity=0.6,
-            annotation_text="70% (P0)",
-            annotation_position="right",
-        )
-        fig_fx.update_layout(
-            xaxis_title="Faixa de valor da causa",
-            yaxis_title="Aderência",
-            yaxis_tickformat=".0%",
-            yaxis_range=[0, 1.05],
-            margin=dict(l=10, r=40, t=10, b=10),
-            height=340,
-            showlegend=False,
-        )
-        st.plotly_chart(fig_fx, use_container_width=True)
-
-    with l3c2:
-        st.subheader("Aderência por Faixa de Completude (A04)")
-        por_cp = metrics_adherence.aderencia_por_faixa_completude(df_f).reset_index()
-        por_cp.columns = ["faixa_completude", "aderencia"]
-        ordem_cp = ["Frágil", "Parcial", "Sólida"]
-        por_cp["faixa_completude"] = pd.Categorical(
-            por_cp["faixa_completude"], categories=ordem_cp, ordered=True,
-        )
-        por_cp = por_cp.sort_values("faixa_completude")
-        por_cp["label"] = por_cp["aderencia"].apply(
-            lambda p: f"{p*100:.1f}%".replace(".", ",")
-        )
-        cores_cp = [
-            COR_OK if a >= TH_ADESAO_OK
-            else COR_DESTAQUE if a >= TH_ADESAO_ALERTA
-            else COR_ALERTA
-            for a in por_cp["aderencia"]
-        ]
-        fig_cp = go.Figure(
-            go.Bar(
-                x=por_cp["faixa_completude"].astype(str),
-                y=por_cp["aderencia"],
-                marker_color=cores_cp,
-                text=por_cp["label"],
-                textposition="outside",
-            )
-        )
-        fig_cp.update_layout(
-            xaxis_title="Completude probatória",
-            yaxis_title="Aderência",
-            yaxis_tickformat=".0%",
-            yaxis_range=[0, 1.05],
-            margin=dict(l=10, r=40, t=10, b=10),
-            height=340,
-            showlegend=False,
-        )
-        st.plotly_chart(fig_cp, use_container_width=True)
-
-    st.divider()
-
-    # ---- Painel de alertas P0 ----
     alertas = metrics_adherence.alertas_ativos(df_f)
     n_alertas = len(alertas)
-    titulo_exp = (
-        f"⚠️ Alertas ativos (P0) — {n_alertas} ativo(s)"
+    label_alertas = (
+        f"Alertas urgentes — {n_alertas} ativo(s)"
         if n_alertas
-        else "✅ Alertas ativos (P0) — nenhum"
+        else "Alertas urgentes — nenhum"
     )
-    with st.expander(titulo_exp, expanded=n_alertas > 0):
-        if not alertas:
-            st.success("Nenhum alerta P0 acionado no recorte atual.")
-        else:
-            linhas = []
-            for a in alertas:
-                linhas.append({
-                    "ID": a["id"],
-                    "Severidade": a["severidade"],
-                    "Métrica": a["nome"],
-                    "Valor": fmt_pct(a["valor"]),
-                    "Threshold": fmt_pct(a["threshold"]),
-                    "Mensagem": a["mensagem"],
-                })
-            df_al = pd.DataFrame(linhas)
-            st.dataframe(df_al, hide_index=True, use_container_width=True)
+
+    with st.expander("Análises detalhadas", expanded=n_alertas > 0):
+        tabs_exp = st.tabs([
+            "Razões de override",
+            "Aderência por faixa de valor",
+            "Aderência por completude",
+            "Aderência por UF",
+            label_alertas,
+        ])
+
+        # Razões de override (antiga A13)
+        with tabs_exp[0]:
+            razoes = metrics_adherence.distribuicao_razoes_override(df_f)
+            if razoes.empty:
+                st.info("Nenhum override no recorte atual.")
+            else:
+                df_raz = razoes.reset_index()
+                df_raz.columns = ["razao", "proporcao"]
+                df_raz = df_raz.sort_values("proporcao", ascending=True)
+                df_raz["label"] = df_raz["proporcao"].apply(
+                    lambda p: f"{p*100:.1f}%".replace(".", ",")
+                )
+                cores_raz = [
+                    Colors.DANGER if r == "discordancia_score"
+                    else Colors.TEXT_MUTED if r == "outro"
+                    else Colors.ACCENT
+                    for r in df_raz["razao"]
+                ]
+                fig_raz = go.Figure(
+                    go.Bar(
+                        x=df_raz["proporcao"],
+                        y=df_raz["razao"],
+                        orientation="h",
+                        marker_color=cores_raz,
+                        text=df_raz["label"],
+                        textposition="outside",
+                        hovertemplate="<b>%{y}</b><br>%{x:.1%}<extra></extra>",
+                    )
+                )
+                fig_raz.update_layout(
+                    xaxis_title="Proporção dos overrides",
+                    yaxis_title=None,
+                    xaxis_tickformat=".0%",
+                    margin=dict(l=10, r=40, t=10, b=10),
+                    showlegend=False,
+                )
+                st.plotly_chart(_plotly(fig_raz, height=340), use_container_width=True)
+
+        # A08 — faixa de valor
+        with tabs_exp[1]:
+            por_fx = metrics_adherence.aderencia_por_faixa_valor(df_f).reset_index()
+            por_fx.columns = ["faixa_valor", "aderencia"]
+            ordem = ["Baixo", "Médio", "Alto"]
+            por_fx["faixa_valor"] = pd.Categorical(
+                por_fx["faixa_valor"], categories=ordem, ordered=True,
+            )
+            por_fx = por_fx.sort_values("faixa_valor")
+            por_fx["label"] = por_fx["aderencia"].apply(
+                lambda p: f"{p*100:.1f}%".replace(".", ",")
+            )
+            cores_fx = [
+                Colors.SUCCESS if a >= TH_ADESAO_OK
+                else Colors.WARNING if a >= TH_ADESAO_ALERTA
+                else Colors.DANGER
+                for a in por_fx["aderencia"]
+            ]
+            fig_fx = go.Figure(
+                go.Bar(
+                    x=por_fx["faixa_valor"].astype(str),
+                    y=por_fx["aderencia"],
+                    marker_color=cores_fx,
+                    text=por_fx["label"],
+                    textposition="outside",
+                )
+            )
+            fig_fx.add_hline(
+                y=TH_ADESAO_ALERTA, line_dash="dot",
+                line_color=Colors.DANGER, opacity=0.6,
+                annotation_text="Limite urgente (70%)",
+                annotation_position="right",
+            )
+            fig_fx.update_layout(
+                xaxis_title="Faixa de valor da causa",
+                yaxis_title="Aderência",
+                yaxis_tickformat=".0%",
+                yaxis_range=[0, 1.05],
+                margin=dict(l=10, r=40, t=10, b=10),
+                showlegend=False,
+            )
+            st.plotly_chart(_plotly(fig_fx, height=320), use_container_width=True)
+
+        # A04 — faixa de completude
+        with tabs_exp[2]:
+            por_cp = metrics_adherence.aderencia_por_faixa_completude(df_f).reset_index()
+            por_cp.columns = ["faixa_completude", "aderencia"]
+            ordem_cp = ["Frágil", "Parcial", "Sólida"]
+            por_cp["faixa_completude"] = pd.Categorical(
+                por_cp["faixa_completude"], categories=ordem_cp, ordered=True,
+            )
+            por_cp = por_cp.sort_values("faixa_completude")
+            por_cp["label"] = por_cp["aderencia"].apply(
+                lambda p: f"{p*100:.1f}%".replace(".", ",")
+            )
+            cores_cp = [
+                Colors.SUCCESS if a >= TH_ADESAO_OK
+                else Colors.WARNING if a >= TH_ADESAO_ALERTA
+                else Colors.DANGER
+                for a in por_cp["aderencia"]
+            ]
+            fig_cp = go.Figure(
+                go.Bar(
+                    x=por_cp["faixa_completude"].astype(str),
+                    y=por_cp["aderencia"],
+                    marker_color=cores_cp,
+                    text=por_cp["label"],
+                    textposition="outside",
+                )
+            )
+            fig_cp.update_layout(
+                xaxis_title="Completude probatória",
+                yaxis_title="Aderência",
+                yaxis_tickformat=".0%",
+                yaxis_range=[0, 1.05],
+                margin=dict(l=10, r=40, t=10, b=10),
+                showlegend=False,
+            )
+            st.plotly_chart(_plotly(fig_cp, height=320), use_container_width=True)
+
+        # A07 — por UF
+        with tabs_exp[3]:
+            por_uf_ad = metrics_adherence.aderencia_por_uf(df_f).reset_index()
+            por_uf_ad.columns = ["uf", "aderencia"]
+            por_uf_ad = por_uf_ad.sort_values("aderencia")
+            por_uf_ad["label"] = por_uf_ad["aderencia"].apply(
+                lambda p: f"{p*100:.1f}%".replace(".", ",")
+            )
+            cores_uf = [
+                Colors.SUCCESS if a >= TH_ADESAO_OK
+                else Colors.WARNING if a >= TH_ADESAO_ALERTA
+                else Colors.DANGER
+                for a in por_uf_ad["aderencia"]
+            ]
+            fig_uf_ad = go.Figure(
+                go.Bar(
+                    x=por_uf_ad["aderencia"],
+                    y=por_uf_ad["uf"],
+                    orientation="h",
+                    marker_color=cores_uf,
+                    text=por_uf_ad["label"],
+                    textposition="outside",
+                )
+            )
+            fig_uf_ad.update_layout(
+                xaxis_title="Aderência",
+                yaxis_title=None,
+                xaxis_tickformat=".0%",
+                xaxis_range=[0, 1.0],
+                margin=dict(l=10, r=40, t=10, b=10),
+                showlegend=False,
+            )
+            st.plotly_chart(_plotly(fig_uf_ad, height=360), use_container_width=True)
+
+        # Alertas urgentes (antigo P0)
+        with tabs_exp[4]:
+            if not alertas:
+                st.success("Nenhum alerta urgente acionado no recorte atual.")
+            else:
+                linhas = []
+                for a in alertas:
+                    linhas.append({
+                        "ID": a["id"],
+                        "Severidade": "Urgente",
+                        "Métrica": a["nome"],
+                        "Valor": fmt_pct(a["valor"]),
+                        "Threshold": fmt_pct(a["threshold"]),
+                        "Mensagem": a["mensagem"],
+                    })
+                df_al = pd.DataFrame(linhas)
+                st.dataframe(df_al, hide_index=True, use_container_width=True)
 
 
 # ============================================================
 # Aba 3 · Efetividade
 # ============================================================
 elif view == "Efetividade":
-    st.title("Monitoramento de Efetividade")
+    st.title("Monitoramento de efetividade")
     st.caption("A política está gerando o resultado financeiro esperado?")
 
     if df_pol is None:
@@ -947,13 +1007,11 @@ elif view == "Efetividade":
         )
         st.stop()
 
-    # Badge com fonte da política
     if fonte_politica == "csv":
-        st.info("Fonte da política: CSV do XGBoost", icon="🤖")
+        st.info("Fonte da política: CSV do XGBoost")
     else:
-        st.info("Fonte da política: mock (H2+H3 · DECISOES.md)", icon="🧪")
+        st.info("Fonte da política: mock (H2+H3 · DECISOES.md)")
 
-    # Aplica filtros globais
     df_f = aplicar_filtros(
         df_pol, flt_ufs, flt_escritorios, flt_subassunto, flt_periodo
     )
@@ -966,19 +1024,15 @@ elif view == "Efetividade":
         st.warning("Nenhum caso após aplicar os filtros. Ajuste a seleção.")
         st.stop()
 
-    # ---- Simulação dos 2 cenários ----
-    # Potencial: todos seguem a política (acao_recomendada)
+    # ────────────────────────────────────────────────────────
+    # Simulação dos 2 cenários
+    # ────────────────────────────────────────────────────────
     sim_potencial = counterfactual.simular_politica(
         df_f,
         acao_col="acao_recomendada",
         valor_acordo_col="valor_acordo_recomendado",
         prob_aceita=prob_aceita,
     )
-
-    # Realizada: advogados decidiram acao_tomada. Para os que fizeram acordo,
-    # o valor proposto é valor_acordo_proposto; para defesa, usa custo observado.
-    # Preenche NaN de valor_acordo_proposto com 30% da causa (fallback H2)
-    # só para não derrubar a simulação — só é usado quando acao_tomada==acordo.
     df_realizado = df_f.copy()
     if "valor_acordo_proposto" in df_realizado.columns:
         fallback = df_realizado["valor_causa"] * 0.30
@@ -992,147 +1046,120 @@ elif view == "Efetividade":
         prob_aceita=prob_aceita,
     )
 
-    # Gap = Potencial - Realizada (em R$ e % do potencial)
     gap_rs = sim_potencial["economia_total"] - sim_realizada["economia_total"]
     gap_pct = (
         gap_rs / sim_potencial["economia_total"]
         if sim_potencial["economia_total"] > 0 else 0.0
     )
+    economia_potencial = sim_potencial["economia_total"]
 
-    # ---- KPIs topo (3 colunas) ----
+    # ────────────────────────────────────────────────────────
+    # Camada 1 · MANCHETE (dinâmica)
+    # ────────────────────────────────────────────────────────
+    ui.headline(
+        texto_insight=(
+            f"Política em curso deixa {gap_pct*100:.0f}% da economia potencial "
+            "sobre a mesa"
+        ),
+        valor_grande=fmt_brl_compact(economia_potencial),
+        subtexto=(
+            "Economia potencial anual se aderência = 100% "
+            f"(probabilidade de aceitação atual: {prob_aceita:.0%})"
+        ),
+    )
+
+    # KPIs de contexto — cores conforme severidade do valor
     k1, k2, k3 = st.columns(3)
     k1.metric(
-        "Economia Potencial",
-        fmt_brl_curto(sim_potencial["economia_total"]),
+        "Economia potencial",
+        fmt_brl_compact(sim_potencial["economia_total"]),
         delta=fmt_pct(sim_potencial["economia_percentual"]) + " do baseline",
         delta_color="off",
         help=f"Cenário: todos seguiram a política. prob_aceita={prob_aceita:.2f}.",
     )
     k2.metric(
-        "Economia Realizada",
-        fmt_brl_curto(sim_realizada["economia_total"]),
+        "Economia realizada",
+        fmt_brl_compact(sim_realizada["economia_total"]),
         delta=fmt_pct(sim_realizada["economia_percentual"]) + " do baseline",
         delta_color="off",
         help="Cenário: o que os advogados efetivamente fizeram "
         "(acao_tomada + valor_acordo_proposto).",
     )
     k3.metric(
-        "Gap de Aderência",
-        fmt_brl_curto(gap_rs),
+        "Gap de aderência",
+        fmt_brl_compact(gap_rs),
         delta=f"-{gap_pct*100:.1f}% do potencial".replace(".", ","),
         delta_color="inverse",
         help="Economia que a política entregaria se a aderência fosse total, "
-        "mas que foi perdida por overrides. É a justificativa do "
-        "monitoramento de aderência.",
+        "mas que foi perdida por overrides.",
     )
 
-    st.divider()
+    # ────────────────────────────────────────────────────────
+    # Camada 2 · PROVA — 3 gráficos essenciais
+    # ────────────────────────────────────────────────────────
+    ui.section_divider("Prova · o que sustenta o número")
 
-    # ---- Linha 1: sensibilidade + redistribuição micro ----
-    l1c1, l1c2 = st.columns(2)
+    # Prova 1: sensibilidade (curva + marcador do slider)
+    st.subheader("Curva de sensibilidade · probabilidade × economia")
+    probs_varredura = [round(p, 2) for p in np.arange(0.10, 0.96, 0.05)]
+    df_sens = counterfactual.simular_sensibilidade(
+        df_f,
+        acao_col="acao_recomendada",
+        valor_acordo_col="valor_acordo_recomendado",
+        probs=probs_varredura,
+    )
+    fig_sens = go.Figure()
+    fig_sens.add_trace(
+        go.Scatter(
+            x=df_sens["prob_aceita_assumida"],
+            y=df_sens["economia_total"],
+            mode="lines+markers",
+            line=dict(color=Colors.ACCENT, width=3),
+            marker=dict(size=6, color=Colors.ACCENT),
+            name="Economia potencial",
+            hovertemplate=(
+                "prob_aceita=%{x:.2f}<br>"
+                "Economia: R$ %{y:,.0f}<extra></extra>"
+            ),
+        )
+    )
+    mask_slider = np.isclose(df_sens["prob_aceita_assumida"], prob_aceita)
+    if mask_slider.any():
+        economia_ativa = float(df_sens.loc[mask_slider, "economia_total"].iloc[0])
+    else:
+        economia_ativa = float(sim_potencial["economia_total"])
+    fig_sens.add_trace(
+        go.Scatter(
+            x=[prob_aceita],
+            y=[economia_ativa],
+            mode="markers",
+            marker=dict(
+                size=18, color=Colors.ACCENT, symbol="star",
+                line=dict(width=2, color=Colors.ACCENT_HOVER),
+            ),
+            name="Slider atual",
+            hovertemplate=(
+                "<b>Slider atual</b><br>"
+                "prob_aceita=%{x:.2f}<br>"
+                "Economia: R$ %{y:,.0f}<extra></extra>"
+            ),
+        )
+    )
+    fig_sens.update_layout(
+        xaxis_title="Probabilidade de aceitação do acordo",
+        yaxis_title="Economia total (R$)",
+        margin=dict(l=10, r=10, t=10, b=10),
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1.0),
+    )
+    st.plotly_chart(_plotly(fig_sens, height=340), use_container_width=True)
 
-    with l1c1:
-        st.subheader("Sensibilidade · prob_aceita × Economia")
-        probs_varredura = [round(p, 2) for p in np.arange(0.10, 0.96, 0.05)]
-        df_sens = counterfactual.simular_sensibilidade(
-            df_f,
-            acao_col="acao_recomendada",
-            valor_acordo_col="valor_acordo_recomendado",
-            probs=probs_varredura,
-        )
-        fig_sens = go.Figure()
-        fig_sens.add_trace(
-            go.Scatter(
-                x=df_sens["prob_aceita_assumida"],
-                y=df_sens["economia_total"],
-                mode="lines+markers",
-                line=dict(color=COR_PRIMARIA, width=3),
-                marker=dict(size=6, color=COR_PRIMARIA),
-                name="Economia potencial",
-                hovertemplate=(
-                    "prob_aceita=%{x:.2f}<br>"
-                    "Economia: R$ %{y:,.0f}<extra></extra>"
-                ),
-            )
-        )
-        # Marcador destacado no ponto ativo do slider
-        mask_slider = np.isclose(df_sens["prob_aceita_assumida"], prob_aceita)
-        if mask_slider.any():
-            economia_ativa = float(df_sens.loc[mask_slider, "economia_total"].iloc[0])
-        else:
-            economia_ativa = float(sim_potencial["economia_total"])
-        fig_sens.add_trace(
-            go.Scatter(
-                x=[prob_aceita],
-                y=[economia_ativa],
-                mode="markers",
-                marker=dict(size=18, color=COR_DESTAQUE, symbol="star",
-                            line=dict(width=2, color=COR_PRIMARIA)),
-                name="Slider atual",
-                hovertemplate=(
-                    "<b>Slider atual</b><br>"
-                    "prob_aceita=%{x:.2f}<br>"
-                    "Economia: R$ %{y:,.0f}<extra></extra>"
-                ),
-            )
-        )
-        fig_sens.update_layout(
-            xaxis_title="Probabilidade de aceitação do acordo",
-            yaxis_title="Economia total (R$)",
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=360,
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                        xanchor="right", x=1.0),
-        )
-        st.plotly_chart(fig_sens, use_container_width=True)
+    p1, p2 = st.columns(2)
 
-    with l1c2:
-        st.subheader("Redistribuição de Resultado Micro (E05)")
-        df_redist = metrics_effectiveness.redistribuicao_resultado_micro(
-            df_f,
-            baseline=baseline,
-            acao_col="acao_recomendada",
-            prob_aceita=prob_aceita,
-        )
-        fig_red = go.Figure()
-        fig_red.add_trace(
-            go.Bar(
-                x=df_redist["resultado_micro"],
-                y=df_redist["antes_pct"],
-                name="Antes (baseline)",
-                marker_color=COR_NEUTRO,
-                hovertemplate="<b>%{x}</b><br>Antes: %{y:.1%}<extra></extra>",
-            )
-        )
-        fig_red.add_trace(
-            go.Bar(
-                x=df_redist["resultado_micro"],
-                y=df_redist["depois_pct"],
-                name="Depois (política)",
-                marker_color=COR_PRIMARIA,
-                hovertemplate="<b>%{x}</b><br>Depois: %{y:.1%}<extra></extra>",
-            )
-        )
-        fig_red.update_layout(
-            barmode="group",
-            xaxis_title=None,
-            yaxis_title="Proporção",
-            yaxis_tickformat=".0%",
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=360,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                        xanchor="right", x=1.0),
-        )
-        st.plotly_chart(fig_red, use_container_width=True)
-
-    st.divider()
-
-    # ---- Linha 2: E09 temporal + E06 completude ----
-    l2c1, l2c2 = st.columns(2)
-
-    with l2c1:
-        st.subheader("Economia Acumulada Mês a Mês (E09)")
+    # Prova 2: economia acumulada mês a mês (antigo E09)
+    with p1:
+        st.subheader("Economia acumulada mês a mês")
         df_temp = metrics_effectiveness.economia_acumulada_temporal(
             df_f,
             acao_col="acao_recomendada",
@@ -1150,8 +1177,8 @@ elif view == "Efetividade":
                     y=df_temp["economia_acumulada"],
                     mode="lines",
                     fill="tozeroy",
-                    line=dict(color=COR_PRIMARIA, width=3),
-                    fillcolor="rgba(31,78,121,0.18)",
+                    line=dict(color=Colors.ACCENT, width=3),
+                    fillcolor="rgba(255,174,53,0.18)",
                     name="Acumulada",
                     hovertemplate=(
                         "<b>%{x}</b><br>Acumulada: R$ %{y:,.0f}<extra></extra>"
@@ -1163,8 +1190,8 @@ elif view == "Efetividade":
                     x=df_temp["mes"],
                     y=df_temp["economia_mes"],
                     mode="lines+markers",
-                    line=dict(color=COR_DESTAQUE, width=2, dash="dot"),
-                    marker=dict(size=6),
+                    line=dict(color=Colors.SUCCESS, width=2, dash="dot"),
+                    marker=dict(size=6, color=Colors.SUCCESS),
                     name="Mensal",
                     hovertemplate=(
                         "<b>%{x}</b><br>Mês: R$ %{y:,.0f}<extra></extra>"
@@ -1175,63 +1202,158 @@ elif view == "Efetividade":
                 xaxis_title=None,
                 yaxis_title="Economia (R$)",
                 margin=dict(l=10, r=10, t=10, b=10),
-                height=360,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02,
                             xanchor="right", x=1.0),
             )
-            st.plotly_chart(fig_temp, use_container_width=True)
+            st.plotly_chart(_plotly(fig_temp, height=340), use_container_width=True)
 
-    with l2c2:
-        st.subheader("Custo Médio por Faixa de Completude (E06)")
-        df_cp = metrics_effectiveness.custo_por_faixa_completude(
+    # Prova 3: redistribuição de resultado micro antes/depois (antigo E05)
+    with p2:
+        st.subheader("Redistribuição de resultado micro · antes × depois")
+        df_redist = metrics_effectiveness.redistribuicao_resultado_micro(
             df_f,
+            baseline=baseline,
             acao_col="acao_recomendada",
-            valor_acordo_col="valor_acordo_recomendado",
             prob_aceita=prob_aceita,
         )
-        if df_cp.empty:
-            st.info("Sem dados no recorte atual.")
-        else:
-            # custo médio = custo_politica / n_casos
-            df_cp = df_cp.copy()
-            df_cp["custo_medio_obs"] = df_cp["custo_observado"] / df_cp["n_casos"]
-            df_cp["custo_medio_pol"] = df_cp["custo_politica"] / df_cp["n_casos"]
-            # ordem lógica
-            ordem_cp = ["Frágil", "Parcial", "Sólida"]
-            df_cp["faixa_completude"] = pd.Categorical(
-                df_cp["faixa_completude"], categories=ordem_cp, ordered=True,
+        fig_red = go.Figure()
+        fig_red.add_trace(
+            go.Bar(
+                x=df_redist["resultado_micro"],
+                y=df_redist["antes_pct"],
+                name="Antes (baseline)",
+                marker_color=Colors.TEXT_MUTED,
+                hovertemplate="<b>%{x}</b><br>Antes: %{y:.1%}<extra></extra>",
             )
-            df_cp = df_cp.sort_values("faixa_completude")
+        )
+        fig_red.add_trace(
+            go.Bar(
+                x=df_redist["resultado_micro"],
+                y=df_redist["depois_pct"],
+                name="Depois (política)",
+                marker_color=Colors.ACCENT,
+                hovertemplate="<b>%{x}</b><br>Depois: %{y:.1%}<extra></extra>",
+            )
+        )
+        fig_red.update_layout(
+            barmode="group",
+            xaxis_title=None,
+            yaxis_title="Proporção",
+            yaxis_tickformat=".0%",
+            margin=dict(l=10, r=10, t=10, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1.0),
+        )
+        st.plotly_chart(_plotly(fig_red, height=340), use_container_width=True)
 
-            fig_e06 = go.Figure()
-            fig_e06.add_trace(
-                go.Bar(
-                    x=df_cp["faixa_completude"].astype(str),
-                    y=df_cp["custo_medio_obs"],
-                    name="Observado (baseline)",
-                    marker_color=COR_NEUTRO,
-                    hovertemplate="<b>%{x}</b><br>Observado: R$ %{y:,.0f}<extra></extra>",
+    # ────────────────────────────────────────────────────────
+    # Camada 3 · EXPLORAÇÃO
+    # ────────────────────────────────────────────────────────
+    ui.section_divider("Exploração · custos, recall e precision")
+
+    with st.expander("Análises detalhadas", expanded=False):
+        tabs_ef = st.tabs([
+            "Custo por completude probatória",
+            "Distribuição dos valores de acordo",
+            "Detalhes dos cenários",
+        ])
+
+        with tabs_ef[0]:
+            df_cp = metrics_effectiveness.custo_por_faixa_completude(
+                df_f,
+                acao_col="acao_recomendada",
+                valor_acordo_col="valor_acordo_recomendado",
+                prob_aceita=prob_aceita,
+            )
+            if df_cp.empty:
+                st.info("Sem dados no recorte atual.")
+            else:
+                df_cp = df_cp.copy()
+                df_cp["custo_medio_obs"] = df_cp["custo_observado"] / df_cp["n_casos"]
+                df_cp["custo_medio_pol"] = df_cp["custo_politica"] / df_cp["n_casos"]
+                ordem_cp = ["Frágil", "Parcial", "Sólida"]
+                df_cp["faixa_completude"] = pd.Categorical(
+                    df_cp["faixa_completude"], categories=ordem_cp, ordered=True,
                 )
-            )
-            fig_e06.add_trace(
-                go.Bar(
-                    x=df_cp["faixa_completude"].astype(str),
-                    y=df_cp["custo_medio_pol"],
-                    name="Sob política",
-                    marker_color=COR_PRIMARIA,
-                    hovertemplate="<b>%{x}</b><br>Política: R$ %{y:,.0f}<extra></extra>",
+                df_cp = df_cp.sort_values("faixa_completude")
+
+                fig_e06 = go.Figure()
+                fig_e06.add_trace(
+                    go.Bar(
+                        x=df_cp["faixa_completude"].astype(str),
+                        y=df_cp["custo_medio_obs"],
+                        name="Observado (baseline)",
+                        marker_color=Colors.TEXT_MUTED,
+                        hovertemplate="<b>%{x}</b><br>Observado: R$ %{y:,.0f}<extra></extra>",
+                    )
                 )
+                fig_e06.add_trace(
+                    go.Bar(
+                        x=df_cp["faixa_completude"].astype(str),
+                        y=df_cp["custo_medio_pol"],
+                        name="Sob política",
+                        marker_color=Colors.ACCENT,
+                        hovertemplate="<b>%{x}</b><br>Política: R$ %{y:,.0f}<extra></extra>",
+                    )
+                )
+                fig_e06.update_layout(
+                    barmode="group",
+                    xaxis_title="Completude probatória",
+                    yaxis_title="Custo médio por caso (R$)",
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                                xanchor="right", x=1.0),
+                )
+                st.plotly_chart(_plotly(fig_e06, height=340), use_container_width=True)
+
+        with tabs_ef[1]:
+            st.caption(
+                "Distribuição dos valores propostos em acordos realizados "
+                "(quando havia valor_acordo_proposto preenchido)."
             )
-            fig_e06.update_layout(
-                barmode="group",
-                xaxis_title="Completude probatória",
-                yaxis_title="Custo médio por caso (R$)",
-                margin=dict(l=10, r=10, t=10, b=10),
-                height=360,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                            xanchor="right", x=1.0),
-            )
-            st.plotly_chart(fig_e06, use_container_width=True)
+            acordos_feitos = df_f[
+                (df_f["acao_tomada"] == "acordo")
+                & df_f["valor_acordo_proposto"].notna()
+            ].copy()
+            if acordos_feitos.empty:
+                st.info("Sem acordos realizados no recorte atual.")
+            else:
+                acordos_feitos["ratio"] = (
+                    acordos_feitos["valor_acordo_proposto"]
+                    / acordos_feitos["valor_causa"]
+                )
+                fig_hist = go.Figure(
+                    go.Histogram(
+                        x=acordos_feitos["ratio"],
+                        nbinsx=30,
+                        marker_color=Colors.ACCENT,
+                        hovertemplate="Ratio: %{x:.2f}<br>n: %{y}<extra></extra>",
+                    )
+                )
+                fig_hist.add_vline(
+                    x=0.30, line_dash="dash", line_color=Colors.SUCCESS,
+                    annotation_text="30% (política)",
+                    annotation_position="top",
+                )
+                fig_hist.update_layout(
+                    xaxis_title="Valor do acordo / valor da causa",
+                    yaxis_title="Número de acordos",
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    showlegend=False,
+                )
+                st.plotly_chart(_plotly(fig_hist, height=320), use_container_width=True)
+
+        with tabs_ef[2]:
+            linhas_det = [
+                ("Casos no recorte", fmt_int_br(len(df_f))),
+                ("Economia potencial", fmt_brl(sim_potencial["economia_total"], casas=0)),
+                ("Economia realizada", fmt_brl(sim_realizada["economia_total"], casas=0)),
+                ("Gap (R$)", fmt_brl(gap_rs, casas=0)),
+                ("Gap (%)", fmt_pct(gap_pct)),
+                ("prob_aceita assumida", f"{prob_aceita:.0%}"),
+            ]
+            df_det = pd.DataFrame(linhas_det, columns=["Métrica", "Valor"])
+            st.dataframe(df_det, hide_index=True, use_container_width=True)
 
     st.caption(
         "Fonte da política: MOCK (subs_total ≤ 3, 30% da causa). Quando CSV "
