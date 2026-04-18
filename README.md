@@ -209,8 +209,42 @@ bash run.sh
 
 ## 🛠️ Estrutura do Projeto
 
+O projeto tem **três frentes** integradas no mesmo repositório:
+
+| Frente | Pasta | Papel |
+|---|---|---|
+| **Política de acordos (XGBoost)** | `artefatos/`, `scripts/`, `docs/politica_acordo.md` | Modelo treinado que decide acordo vs defesa e sugere valor |
+| **Plataforma do advogado** | `backend/`, `frontend/` | Interface onde o advogado consome a recomendação e registra a decisão |
+| **Monitoramento** | `src/monitor/`, `tests/`, `docs/DECISOES.md` | Dashboards de aderência (req. 4) e efetividade (req. 5) |
+
+### Topologia de execução
+
+`bash run.sh` sobe três serviços atrás de um **gateway único na porta 8080** (Caddy, binário local em `bin/caddy` baixado automaticamente):
+
+```
+http://localhost:8080/                   → frontend React (plataforma)
+http://localhost:8080/api/*              → backend Flask (interno :5000)
+http://localhost:8080/monitoramento/*    → dashboard Streamlit (interno :8501)
+```
+
+A frente de monitoramento é acessível pelo menu lateral da plataforma ("Monitoramento", ícone de barras). Fica embutida como **ÁREA DO BANCO** via iframe na mesma origem.
+
+### Artefatos e integração cruzada
+
+- O dashboard de monitoramento consome automaticamente `data/processed/politica_output.csv` quando existe (output do XGBoost). Sem o CSV, cai para uma política de fallback documentada em `docs/DECISOES.md`.
+- Os artefatos pesados do modelo (`artefatos/*.pkl`, ~20 MB) são ignorados pelo git. Para baixá-los: `git checkout origin/master -- artefatos/`.
+- Geração do CSV do XGBoost: `python -m src.monitor.politica_xgboost`.
+- Suíte de testes da frente de monitoramento: `pytest tests/ -q` (65 testes).
+
+### Estrutura de pastas
+
 - `backend/`: API Flask (Python) para processamento de documentos e IA.
 - `frontend/`: Interface React (Vite) para visualização e chat.
+- `src/monitor/`: Frente de monitoramento (Python + Streamlit + Plotly).
+- `tests/`: Suíte pytest da frente de monitoramento.
 - `data/`: Bases de dados e documentos de exemplo.
 - `docs/`: Documentação e apresentações.
-- `run.ps1` / `run.sh`: Scripts de automação.
+- `artefatos/`: Modelo XGBoost e metadados (arquivos leves versionados).
+- `scripts/`: Pipelines de preparação e treino do modelo.
+- `bin/`: Binário local do Caddy (baixado pelo `run.sh`).
+- `run.ps1` / `run.sh` / `dev.sh`: Scripts de automação (produção e desenvolvimento).
