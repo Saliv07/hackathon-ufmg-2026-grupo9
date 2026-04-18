@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ExternalLink, RefreshCw, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, ExternalLink, X } from 'lucide-react';
 import './MonitoramentoBanco.css';
 
 // Em produção o próprio Flask serve /monitoramento/ (Dash montado no mesmo
@@ -58,8 +58,9 @@ export default function MonitoramentoBanco() {
   });
   const [optionsError, setOptionsError] = useState(false);
 
-  // Chave que força o remount do iframe quando qualquer filtro muda
-  const [iframeKey, setIframeKey] = useState(0);
+  // Ref do iframe para alterar o src imperativamente (mais confiável
+  // que depender do React re-render em mudanças de query string).
+  const iframeRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,6 +90,21 @@ export default function MonitoramentoBanco() {
     return `${MONITOR_BASE}${qs}`;
   }, [tab, ufs, escs, sub, dataFrom, dataTo, prob]);
 
+  // Força o iframe a carregar a nova URL imperativamente. Mudar só o prop
+  // src via React nem sempre dispara reload em browsers quando a mudança
+  // é só em query string — replace() pula o histórico e garante fetch.
+  useEffect(() => {
+    const el = iframeRef.current;
+    if (!el) return;
+    try {
+      // contentWindow pode ainda não existir na primeira montagem
+      if (el.contentWindow) el.contentWindow.location.replace(iframeUrl);
+      else el.src = iframeUrl;
+    } catch {
+      el.src = iframeUrl;
+    }
+  }, [iframeUrl]);
+
   const toggleInList = (value, list, setter) => {
     if (list.includes(value)) {
       setter(list.filter((v) => v !== value));
@@ -111,8 +127,6 @@ export default function MonitoramentoBanco() {
     setProb(0.40);
   };
 
-  const reloadIframe = () => setIframeKey((k) => k + 1);
-
   const hasActiveFilter =
     ufs.length > 0 || escs.length > 0 || sub !== 'Todos' ||
     (options.periodo && (dataFrom !== options.periodo.min || dataTo !== options.periodo.max));
@@ -125,15 +139,6 @@ export default function MonitoramentoBanco() {
           <h2>Monitoramento da política de acordos</h2>
         </div>
         <div className="monitoramento-header-actions">
-          <button
-            type="button"
-            onClick={reloadIframe}
-            className="monitoramento-btn-ghost"
-            title="Recarregar dashboard"
-          >
-            <RefreshCw size={14} />
-            <span>Recarregar</span>
-          </button>
           <a
             href={iframeUrl}
             target="_blank"
@@ -162,26 +167,38 @@ export default function MonitoramentoBanco() {
         </div>
 
         <div className="monitoramento-filters">
-          {/* UF multi */}
+          {/* UF multi (dropdown-like) */}
           <div className="filter-group">
-            <label className="filter-label">UF</label>
-            <div className="filter-chips">
-              {options.ufs.length === 0 && (
-                <span className="filter-hint">
-                  {optionsError ? 'Indisponível' : 'Carregando...'}
-                </span>
-              )}
-              {options.ufs.map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  className={`chip ${ufs.includes(u) ? 'chip-active' : ''}`}
-                  onClick={() => toggleInList(u, ufs, setUfs)}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
+            <label className="filter-label">
+              UF {ufs.length > 0 && <span className="filter-count">({ufs.length})</span>}
+            </label>
+            {options.ufs.length === 0 ? (
+              <span className="filter-hint">
+                {optionsError ? 'Indisponível' : 'Carregando...'}
+              </span>
+            ) : (
+              <details className="multi-details">
+                <summary className="multi-summary">
+                  {ufs.length === 0
+                    ? 'Todas'
+                    : ufs.length <= 3
+                      ? ufs.join(', ')
+                      : `${ufs.length} selecionadas`}
+                </summary>
+                <div className="multi-list multi-list-grid">
+                  {options.ufs.map((u) => (
+                    <label key={u} className="multi-item">
+                      <input
+                        type="checkbox"
+                        checked={ufs.includes(u)}
+                        onChange={() => toggleInList(u, ufs, setUfs)}
+                      />
+                      <span>{u}</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
 
           {/* Sub-assunto segmented */}
@@ -296,7 +313,7 @@ export default function MonitoramentoBanco() {
         </div>
       ) : (
         <iframe
-          key={iframeKey}
+          ref={iframeRef}
           src={iframeUrl}
           title="Monitoramento Banco UFMG"
           className="monitoramento-frame"
