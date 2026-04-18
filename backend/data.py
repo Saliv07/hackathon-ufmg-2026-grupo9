@@ -11,7 +11,7 @@ _hackaton_dir = os.path.dirname(_project_dir)
 DOCS_BASE = os.path.join(_hackaton_dir, "Docs Hackkaton", "drive-dowload")
 if not os.path.exists(DOCS_BASE):
     # Se não achar na raiz externa, tenta procurar dentro do repo ou em 'data'
-    DOCS_BASE = os.path.join(_project_dir, "data", "processos_exemplo")
+    DOCS_BASE = os.path.join(_project_dir, "data", "docs_processos")
 
 _caso1 = os.path.join(DOCS_BASE, "Caso_01_0801234-56-2024-8-10-0001")
 _caso2 = os.path.join(DOCS_BASE, "Caso_02_0654321-09-2024-8-04-0001")
