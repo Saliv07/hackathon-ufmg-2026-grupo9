@@ -1,155 +1,142 @@
-# HACKATHON UFMG 2026 — Enter AI Challenge
+# Habeas Código
 
-**17 e 18 de Abril de 2026**
+**Hackathon UFMG 2026 · Enter AI Challenge · Grupo 9**
+17 e 18 de Abril de 2026
 
 ---
 
-## 🎥 Demo em vídeo
+## Demo em vídeo
 
 Veja a aplicação funcionando: **https://youtu.be/Isxih7zVurc**
 
 ---
 
-# 🚀 Início Rápido (Quick Start)
+## O problema
 
-Para rodar o projeto agora mesmo, siga estes passos:
+O Banco UFMG recebe cerca de **5 mil processos por mês** em que o autor alega não reconhecer a contratação de um empréstimo consignado. Para cada caso, o banco precisa decidir entre **defender-se no judiciário** ou **propor um acordo**. Hoje, apenas 0,47% dos 60 mil casos históricos terminaram em acordo — e o banco desembolsou R$ 192,98 milhões em condenações.
 
-1. **Abra o seu terminal.**
-2. **Entre na pasta onde o código foi baixado:**
+## A solução
 
-    ```bash
-    cd hackathon-ufmg-2026-grupo9
-    ```
+**Habeas Código** é uma aplicação Python única que integra três frentes na mesma porta:
 
-    *(Dica: o nome da pasta pode variar dependendo de como você baixou. Pode ser `Grupo-9-Hackathon-master`, por exemplo).*
+- **Política de acordos** — uma engine híbrida em `src/policy/` que combina regras determinísticas auditáveis com um modelo XGBoost (AUC 0,91). Regras cobrem os casos claros (0-1 ou 3 subsídios críticos presentes, UF de alto risco, dossiê não conforme); o modelo decide apenas na zona cinzenta (2 subsídios críticos). O valor do acordo parte de 30% do valor da causa, calibrado com 280 acordos históricos, com ajustes de ±3pp por perfil probatório e ±2pp por UF.
+- **Plataforma do advogado** — Flask (backend) + React com Vite (frontend). O advogado acessa os autos e subsídios de cada caso, recebe a recomendação da política com justificativa gerada por agente OpenAI (GPT-4o + Whisper para áudio + Vision para imagens) e registra a decisão.
+- **Monitoramento** — dashboards em Plotly Dash montados como sub-app do mesmo Flask. Respondem os requisitos 4 (aderência) e 5 (efetividade) do enunciado, com 20 métricas catalogadas (A01-A20 e E02-E11), análise de sensibilidade da economia à taxa de aceitação e alertas operacionais sobre advogados e escritórios com aderência crítica.
 
-3. **Rode o script automático:**
-    - **No Windows**: `.\run`
-    - **No Linux ou macOS**: `./run.sh` (ou `bash run.sh`)
+Sobre os 60 mil casos históricos, a simulação da política estima **R$ 64 milhões de economia anual** (redução de 33% no gasto contencioso).
 
 ---
 
-# 🛠️ Como rodar manualmente (caso o script automático falhe)
+## Como executar
 
-Se os scripts acima derem erro, você pode subir o projeto manualmente. O projeto é dividido em duas partes que devem rodar ao mesmo tempo (em terminais separados).
+Tudo roda em **um único processo Python** na porta **5000** (ou na próxima livre se a 5000 estiver ocupada — comum em macOS, onde o AirPlay Receiver reserva essa porta).
 
-### Pré-requisitos (Dependências)
+### Pré-requisitos
 
-- **Node.js (v18+) e npm** (para rodar o painel frontend)
-- **Python 3.8+** (para rodar a inteligência artificial do backend)
+- **Python 3.10+** — [download](https://www.python.org/downloads/)
+- **Node.js 20.19+** ou **22.12+** — [download](https://nodejs.org/) (necessário para buildar o frontend)
+- Arquivo `.env` na raiz com `OPENAI_API_KEY=sk-...`
 
-### 1. Rodando o Backend (Python)
+### Um comando
 
-Abra uma janela no terminal na pasta raiz do projeto e execute:
-
-```bash
-# Entre na pasta do backend
-cd backend
-
-# Crie um ambiente virtual para instalar as dependências
-python3 -m venv venv
-
-# Ative o ambiente virtual
-# -> No Linux/macOS:
-source venv/bin/activate
-# -> No Windows:
-# .\venv\Scripts\activate
-
-# Instale as dependências da aplicação
-pip install -r requirements.txt
-
-# Inicie a aplicação
-python main.py
-```
-
-### 2. Rodando o Frontend (Node.js)
-
-Abra uma **nova janela (ou aba) do terminal**, vá até a pasta raiz do projeto e execute:
-
-```bash
-# Entre na pasta do frontend
-cd frontend
-
-# Instale as dependências
-npm install
-
-# Inicie o servidor
-npm run dev
-```
-
-Por fim, acesse o link (geralmente `http://localhost:5000`) que irá aparecer no terminal do Frontend!
-## 🚀 Como Executar o Projeto
-
-Tudo roda em **um único processo Python** na porta **5000** (Flask servindo React + API + Dash do monitoramento).
-
-### 1. Pré-requisitos
-- **Python** 3.10+ ([download](https://www.python.org/downloads/))
-- **Node.js** 20.19+ ou 22.12+ ([download](https://nodejs.org/)) — pra buildar o frontend
-- Chave da OpenAI no arquivo `.env` (na raiz do projeto)
-
-### 2. `.env`
-```env
-OPENAI_API_KEY=sk-sua-chave-aqui
-```
-
-### 3. Execução — um comando só (Windows, macOS, Linux)
 ```bash
 python run.py
 ```
 
-O script cuida de tudo:
-- cria o venv do backend e instala dependências Python
-- instala dependências Node (`npm install`)
-- faz `npm run build` do frontend
-- gera os artefatos do monitoramento (parquets) se faltarem
-- sobe o Flask+Dash em `http://localhost:5000/`
+O script cuida de todo o bootstrap:
 
-Para parar: `Ctrl+C`.
+1. Verifica versões de Python e Node
+2. Cria `backend/venv` e instala dependências Python
+3. Roda `npm install` e `npm run build` no frontend
+4. Gera os artefatos do monitoramento (parquets) se faltarem
+5. Detecta uma porta livre automaticamente
+6. Sobe Flask + Dash em foreground
 
-Acessos:
+Acesse `http://localhost:5000/` (ou a porta indicada no console). Ctrl+C encerra tudo.
+
+### Rotas expostas
+
 ```
-http://localhost:5000/                    → frontend React
-http://localhost:5000/api/*               → backend Flask (cases, stats, analyze, upload)
-http://localhost:5000/monitoramento/      → dashboard Dash (aderência + efetividade)
+/                        frontend React (plataforma do advogado)
+/api/*                   endpoints Flask (cases, stats, analyze, uploads)
+/monitoramento/          dashboard Dash (aderência + efetividade)
 ```
 
-### 4. Artefatos pesados do modelo (opcional, melhora o monitoramento)
+### Artefatos pesados do modelo (opcional, melhora o monitoramento)
 
-Os `.pkl` do XGBoost não são versionados. Para baixá-los:
+Os `.pkl` do XGBoost (~20 MB) são ignorados pelo git. Para baixar:
 
 ```bash
 git checkout origin/master -- artefatos/
 ```
 
-Sem isso o monitoramento cai num fallback de política mock.
+Sem isso o monitoramento usa uma política de fallback.
+
+### Forçar uma porta específica
+
+```bash
+PORT=8000 python run.py
+```
 
 ---
 
-## 🛠️ Estrutura do Projeto
+## Estrutura do repositório
 
-O projeto tem **três frentes** integradas no mesmo repositório:
+```
+src/policy/              engine Python da política (regras + XGBoost + pricing)
+src/monitor/             frente de monitoramento
+  ├─ load_data.py        xlsx → parquet
+  ├─ baseline.py         números de referência dos 60k
+  ├─ gerar_sintetico.py  dataset enriquecido (advogados, escritórios, datas)
+  ├─ politica_xgboost.py roda o modelo e gera politica_output.csv
+  ├─ metrics_adherence   A01–A20 (seguimento, override, rankings)
+  ├─ metrics_effective   E02–E11 (economia, sensibilidade, redistribuição)
+  ├─ counterfactual.py   motor contrafactual
+  └─ dash_app.py         app Dash (Aderência + Efetividade)
+backend/                 API Flask + integração OpenAI + montagem do Dash
+frontend/                React + Vite (Login, Dashboard macro, Workspace, Monitoramento)
+artefatos/               modelo XGBoost treinado + metadados
+tests/                   suíte pytest da frente de monitoramento (65 testes)
+docs/                    política escrita, slide deck, decisões técnicas
+run.py                   orquestrador único (venv, build, porta, servidor)
+```
 
-| Frente | Pasta | Papel |
-|---|---|---|
-| **Política de acordos** | `src/policy/`, `artefatos/`, `scripts/`, `docs/politica_acordo.md` | Engine Python (regras + XGBoost) que decide acordo vs defesa e sugere valor |
-| **Plataforma do advogado** | `backend/`, `frontend/` | Interface onde o advogado consome a recomendação e registra a decisão |
-| **Monitoramento** | `src/monitor/`, `tests/`, `docs/DECISOES.md` | Dashboards de aderência (req. 4) e efetividade (req. 5), montados como sub-app Dash no mesmo Flask |
+---
 
-### Integração cruzada
+## Stack
 
-- O Dashboard Macro (`frontend/src/components/Dashboard.jsx`) consome `stats.policy_projection` — simulação da engine `src/policy/` via endpoint `/api/stats`.
-- O dashboard de monitoramento (`/monitoramento/`) consome `data/processed/politica_output.csv` (output do XGBoost) quando existe; senão cai no mock.
-- Filtros do monitoramento (UF, escritório, sub-assunto, período, prob_aceita) vivem na sidebar React e são passados via URL query string.
+**Backend** · Python 3.10+ · Flask 3 · Dash 4 · Plotly · flask-caching · pandas · pyarrow · XGBoost · OpenAI SDK
 
-### Estrutura de pastas
+**Frontend** · React 19 · Vite · lucide-react
 
-- `run.py`: orquestrador único (substituiu `run.sh`/`run.ps1`/`run.bat`)
-- `backend/`: API Flask com rotas `/api/*` + montagem do Dash
-- `frontend/`: Interface React (Vite)
-- `src/policy/`: Engine da política de acordos (regras + pricing + ML)
-- `src/monitor/`: Frente de monitoramento (gerador sintético, métricas, Dash app, política XGBoost)
-- `tests/`: Suíte pytest (65 testes)
-- `data/`: Base histórica + documentos de exemplo
-- `artefatos/`: Modelo XGBoost e metadados (arquivos leves versionados; `.pkl` em `.gitignore`)
-- `scripts/`: Pipelines de preparação e treino do modelo
-- `docs/`: Documentação, política, DECISOES.md
+**Dados** · 60 mil casos reais da base da Enter · 50 advogados e 10 escritórios sintéticos (seed=42) · modelo XGBoost treinado com 9 features (AUC 0,91)
+
+---
+
+## Testes
+
+```bash
+./backend/venv/bin/pytest tests/ -q
+```
+
+65 testes cobrindo smoke, propriedades e unitários sobre load_data, baseline, métricas de aderência, métricas de efetividade e contrafactual. Executam em ~2 segundos.
+
+---
+
+## Documentação adicional
+
+- `docs/politica_acordo.md` — política v2.1 completa (regras, matriz de decisão, pricing)
+- `docs/DECISOES.md` — log vivo de decisões técnicas e 14 assunções (H1-H14) do monitoramento
+- `SETUP.md` — guia detalhado de setup e troubleshooting
+
+---
+
+## Requisitos do enunciado atendidos
+
+| # | Requisito | Onde |
+|---|-----------|------|
+| 1 | Regra de decisão (acordo ou defesa) | `src/policy/engine.py` |
+| 2 | Sugestão de valor para o acordo | `src/policy/pricing.py` |
+| 3 | Acesso à recomendação pelo advogado | Plataforma React + backend Flask |
+| 4 | Monitoramento de aderência | Dashboard Dash · aba Aderência · métricas A01-A20 |
+| 5 | Monitoramento de efetividade | Dashboard Dash · aba Efetividade · métricas E02-E11 |
