@@ -192,11 +192,6 @@ function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectC
           </button>
         </div>
 
-        <button className="new-case-btn" onClick={() => onNavigate('case-selection')}>
-          <Plus size={14} />
-          {!isCollapsed && <span>Novo processo</span>}
-        </button>
-
         <div className="sidebar-section">
           {!isCollapsed && <div className="section-title">Histórico recente</div>}
           <div className="history-list">

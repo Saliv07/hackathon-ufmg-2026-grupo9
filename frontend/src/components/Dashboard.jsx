@@ -18,8 +18,7 @@ function Dashboard() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    const hostname = window.location.hostname;
-    fetch(`http://${hostname}:5000/api/stats`)
+    fetch('/api/stats')
       .then(res => res.json())
       .then(data => setStats(data))
       .catch(err => console.error("Erro ao buscar estatísticas:", err));

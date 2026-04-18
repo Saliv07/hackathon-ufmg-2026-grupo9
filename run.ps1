@@ -1,14 +1,20 @@
-# Script para rodar Backend e Frontend simultaneamente (Windows PowerShell)
+Write-Host "==================================================" -ForegroundColor Cyan
+Write-Host "🚀 Iniciando Plataforma Jurídica do Grupo 9..." -ForegroundColor Cyan
+Write-Host "==================================================" -ForegroundColor Cyan
 
-Write-Host "Iniciando plataforma jurídica do Grupo 9..." -ForegroundColor Cyan
-
-# 1. Iniciar Backend em uma nova janela
-Write-Host "[1/2] Iniciando Backend Python (Flask)..." -ForegroundColor Yellow
-$backendCommand = "cd backend; python -m venv venv; .\venv\Scripts\activate; pip install -r requirements.txt; python main.py"
+Write-Host "`n[1/4] Preparando o ambiente do Backend (Python)..." -ForegroundColor Yellow
+$backendCommand = "cd backend; python -m venv venv; Write-Host '[2/4] Instalando dependências do Backend...' -ForegroundColor Yellow; .\venv\Scripts\activate; pip install -r requirements.txt; Write-Host '[3/4] Iniciando o Backend...' -ForegroundColor Green; python main.py"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "$backendCommand" -WindowStyle Normal
 
-# 2. Iniciar Frontend na janela atual
-Write-Host "[2/2] Iniciando Frontend React (Vite)..." -ForegroundColor Yellow
-cd frontend
-npm install
-npm run dev
+Write-Host "`n[4/4] Preparando o ambiente do Frontend (Node.js)..." -ForegroundColor Yellow
+Push-Location frontend
+try {
+    Write-Host "Instalando dependências do Frontend..." -ForegroundColor Yellow
+    npm install
+    Write-Host "`n✨ Tudo pronto! Iniciando o servidor Frontend..." -ForegroundColor Green
+    Write-Host "👉 Acesse a URL gerada abaixo no seu navegador!" -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor Cyan
+    npm run dev
+} finally {
+    Pop-Location
+}

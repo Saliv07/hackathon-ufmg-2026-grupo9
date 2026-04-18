@@ -11,7 +11,7 @@ function CaseSelection({ onSelectCase, cases }) {
         <div className="home-header">
           <div className="home-header-text">
             <h1>Nenhum processo encontrado</h1>
-            <p>Verifique se o backend Python está rodando na porta 5000.</p>
+            <p>Verifique se o backend Python está rodando na porta 5001.</p>
           </div>
         </div>
       </div>

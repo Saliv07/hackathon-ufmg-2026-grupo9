@@ -43,6 +43,7 @@ function CenterViewer({ document, onContentChange, onQuoteText }) {
   const ext = document.name?.split('.').pop().toLowerCase() ?? '';
   const isPdf   = ext === 'pdf';
   const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+  const isAudio = ['mp3', 'wav', 'ogg', 'm4a'].includes(ext);
   const isText  = ['txt', 'md'].includes(ext);
 
   // ── Nota editável ──────────────────────────────────────────────────────────
@@ -83,6 +84,43 @@ function CenterViewer({ document, onContentChange, onQuoteText }) {
         <div className="image-container">
           <img src={document.fileUrl} alt={document.name} className="doc-image" />
         </div>
+      </div>
+    );
+  }
+
+  // ── Áudio ──────────────────────────────────────────────────────────────────
+  if (document.fileUrl && isAudio) {
+    return (
+      <div className="center-viewer audio-viewer">
+        <div className="viewer-toolbar">
+          <span className="doc-type-badge">{document.type}</span>
+          <span className="doc-name-label">{document.name}</span>
+          {document.content && <span className="toolbar-hint">Selecione o texto para citar</span>}
+          <a href={document.fileUrl} target="_blank" rel="noopener noreferrer" className="toolbar-btn" style={{ marginLeft: document.content ? '10px' : 'auto' }}>
+            ↗ Baixar
+          </a>
+        </div>
+        <div className="audio-container" onMouseUp={handleMouseUp}>
+          <div className="audio-player-section">
+            <div className="audio-icon-wrapper">🎧</div>
+            <audio controls src={document.fileUrl} className="doc-audio">
+              Seu navegador não suporta a reprodução de áudio.
+            </audio>
+          </div>
+          {document.content && (
+            <div className="audio-transcription">
+              <h4 className="transcription-title">Transcrição</h4>
+              <div className="text-body">
+                {document.content.split('\n').map((line, i) => <p key={i}>{line || <br />}</p>)}
+              </div>
+            </div>
+          )}
+        </div>
+        {tooltip && (
+          <div className="selection-tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
+            <button onClick={handleCite}>💬 Citar no chat</button>
+          </div>
+        )}
       </div>
     );
   }
