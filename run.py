@@ -50,6 +50,10 @@ def die(msg: str, code: int = 1) -> None:
 
 def run(cmd: list[str], *, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
     """Roda um comando e propaga stdout/stderr. Aborta em erro quando check=True."""
+    # Resolve 'npm' no Windows, que na verdade é 'npm.cmd', prevenindo FileNotFoundError
+    if IS_WINDOWS and cmd[0] == "npm":
+        cmd[0] = "npm.cmd"
+        
     result = subprocess.run(cmd, cwd=cwd)
     if check and result.returncode != 0:
         die(f"comando falhou: {' '.join(cmd)} (exit {result.returncode})")
@@ -100,9 +104,18 @@ def ensure_backend_venv() -> None:
 
 
 def install_backend_deps() -> None:
+    req_file = BACKEND_DIR / "requirements.txt"
+    flag_file = BACKEND_VENV / ".reqs_installed"
+    
+    if flag_file.exists() and flag_file.stat().st_mtime >= req_file.stat().st_mtime:
+        print("  Dependências Python atualizadas (venv já instalado). Pulando pip install...")
+        return
+
     print("  Instalando dependências Python (pip install -r backend/requirements.txt) ...")
     run([str(VENV_PY), "-m", "pip", "install", "--quiet", "--upgrade", "pip"])
-    run([str(VENV_PY), "-m", "pip", "install", "--quiet", "-r", str(BACKEND_DIR / "requirements.txt")])
+    run([str(VENV_PY), "-m", "pip", "install", "--quiet", "-r", str(req_file)])
+    
+    flag_file.touch()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
