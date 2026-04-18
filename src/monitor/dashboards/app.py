@@ -460,21 +460,40 @@ if view == "Aderência":
         top_bad["label"] = top_bad["aderencia"].apply(
             lambda p: f"{p*100:.1f}%".replace(".", ",")
         )
+        # Label exibido: nome próprio quando disponível, fallback para o ID.
+        label_y = top_bad["advogado_nome"] if "advogado_nome" in top_bad.columns else top_bad["advogado_id"]
+        # Nome do escritório também, se disponível.
+        escritorio_hover = (
+            top_bad["escritorio_nome"]
+            if "escritorio_nome" in top_bad.columns else top_bad["escritorio"]
+        )
+        customdata_cols = [escritorio_hover, top_bad["n_casos"]]
+        if "numero_oab" in top_bad.columns:
+            customdata_cols.append(top_bad["numero_oab"])
+            hover_template = (
+                "<b>%{y}</b><br>"
+                "Aderência: %{x:.1%}<br>"
+                "Escritório: %{customdata[0]}<br>"
+                "OAB: %{customdata[2]}<br>"
+                "n casos: %{customdata[1]:,}<extra></extra>"
+            )
+        else:
+            hover_template = (
+                "<b>%{y}</b><br>"
+                "Aderência: %{x:.1%}<br>"
+                "Escritório: %{customdata[0]}<br>"
+                "n casos: %{customdata[1]:,}<extra></extra>"
+            )
         fig_adv = go.Figure(
             go.Bar(
                 x=top_bad["aderencia"],
-                y=top_bad["advogado_id"],
+                y=label_y,
                 orientation="h",
                 marker_color=Colors.DANGER,
                 text=top_bad["label"],
                 textposition="outside",
-                customdata=top_bad[["escritorio", "n_casos"]],
-                hovertemplate=(
-                    "<b>%{y}</b><br>"
-                    "Aderência: %{x:.1%}<br>"
-                    "Escritório: %{customdata[0]}<br>"
-                    "n casos: %{customdata[1]:,}<extra></extra>"
-                ),
+                customdata=list(zip(*customdata_cols)),
+                hovertemplate=hover_template,
             )
         )
         fig_adv.add_vline(
@@ -505,20 +524,37 @@ if view == "Aderência":
         por_esc["label"] = por_esc["aderencia"].apply(
             lambda p: f"{p*100:.0f}%"
         )
+        # Label exibido: nome do escritório quando disponível, fallback para o ID.
+        label_x = (
+            por_esc["escritorio_nome"]
+            if "escritorio_nome" in por_esc.columns else por_esc["escritorio_id"]
+        )
+        customdata_cols_esc = [por_esc["n_casos"], por_esc["n_advogados"]]
+        if "cidade_sede" in por_esc.columns:
+            customdata_cols_esc.append(por_esc["cidade_sede"])
+            hover_esc = (
+                "<b>%{x}</b><br>"
+                "Aderência: %{y:.1%}<br>"
+                "Sede: %{customdata[2]}<br>"
+                "n casos: %{customdata[0]:,}<br>"
+                "n advogados: %{customdata[1]}<extra></extra>"
+            )
+        else:
+            hover_esc = (
+                "<b>%{x}</b><br>"
+                "Aderência: %{y:.1%}<br>"
+                "n casos: %{customdata[0]:,}<br>"
+                "n advogados: %{customdata[1]}<extra></extra>"
+            )
         fig_esc = go.Figure(
             go.Bar(
-                x=por_esc["escritorio_id"],
+                x=label_x,
                 y=por_esc["aderencia"],
                 marker_color=cores_esc,
                 text=por_esc["label"],
                 textposition="outside",
-                customdata=por_esc[["n_casos", "n_advogados"]],
-                hovertemplate=(
-                    "<b>%{x}</b><br>"
-                    "Aderência: %{y:.1%}<br>"
-                    "n casos: %{customdata[0]:,}<br>"
-                    "n advogados: %{customdata[1]}<extra></extra>"
-                ),
+                customdata=list(zip(*customdata_cols_esc)),
+                hovertemplate=hover_esc,
             )
         )
         fig_esc.add_hline(
