@@ -37,6 +37,8 @@ OPENAI_API_KEY=sk-sua-chave-aqui-da-openai
 
 ### Passo 3: Execução
 
+A plataforma usa um **gateway único na porta 8080** (Caddy) que roteia internamente para backend, monitoramento e frontend. Não é preciso instalar Caddy manualmente — os scripts baixam o binário em `./bin/caddy` na primeira execução.
+
 #### Windows (PowerShell)
 Se for a primeira vez rodando scripts no seu PowerShell, você pode precisar liberar a permissão:
 ```powershell
@@ -51,6 +53,20 @@ Depois, basta rodar o facilitador:
 ```bash
 bash run.sh
 ```
+
+Após iniciar, acesse:
+
+- `http://localhost:8080/` — plataforma (frontend React)
+- `http://localhost:8080/api/*` — backend Flask
+- `http://localhost:8080/monitoramento/` — dashboard Streamlit (também disponível pelo menu "Monitoramento" dentro da plataforma)
+
+#### Modo desenvolvimento (hot-reload)
+
+Para trabalhar no frontend com recarga instantânea:
+```bash
+bash dev.sh   # Linux/macOS
+```
+O Caddy passa a fazer proxy para o Vite dev server em vez de servir o build estático.
 
 ---
 
