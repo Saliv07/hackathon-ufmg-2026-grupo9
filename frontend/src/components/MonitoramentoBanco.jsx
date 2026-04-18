@@ -3,14 +3,20 @@ import { AlertCircle, ExternalLink, X } from 'lucide-react';
 import './MonitoramentoBanco.css';
 
 // Em produção o próprio Flask serve /monitoramento/ (Dash montado no mesmo
-// processo via create_dash_app). Em dev Vite (porta 5173), aponta para o
-// backend em :5000 onde o Dash está montado.
+// processo via create_dash_app) e o frontend é build estático — path
+// relativo resolve sozinho em qualquer porta.
+// Em dev Vite (porta 5173) precisa apontar para o backend. A porta do
+// backend pode variar (Mac usa 5000 por padrão, forçando fallback p/ outra).
+// Configurável via env var do Vite:  VITE_BACKEND_PORT=8000
+const _BACKEND_PORT = import.meta?.env?.VITE_BACKEND_PORT || '5000';
+const _VITE_BACKEND = `http://${window.location.hostname}:${_BACKEND_PORT}`;
+
 const MONITOR_BASE = window.location.port === '5173'
-  ? `http://${window.location.hostname}:5000/monitoramento/`
+  ? `${_VITE_BACKEND}/monitoramento/`
   : '/monitoramento/';
 
 const API_BASE = window.location.port === '5173'
-  ? `http://${window.location.hostname}:5000/api`
+  ? `${_VITE_BACKEND}/api`
   : '/api';
 
 const TABS = [

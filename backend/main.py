@@ -493,4 +493,7 @@ def serve_frontend(path):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    # Porta configurável via env var PORT (Mac tem o AirPlay Receiver
+    # na 5000 por padrão; o run.py detecta e ajusta automaticamente).
+    _port = int(os.getenv("PORT", "5000"))
+    app.run(debug=True, port=_port, host='0.0.0.0')

@@ -10,15 +10,20 @@ Responsável por:
 2. Criar o venv do backend e instalar dependências Python
 3. Instalar dependências Node (npm install) e buildar o frontend
 4. Gerar os artefatos do monitoramento (parquets) se faltarem
-5. Subir o Flask + Dash em http://localhost:5000/
+5. Detectar uma porta livre (mac tem AirPlay na 5000) e subir o
+   Flask + Dash em http://localhost:<porta>/
 
 Aborta com mensagem clara quando alguma dependência está faltando.
 Ctrl+C para encerrar.
+
+Pode forçar uma porta específica via env:
+    PORT=8000 python run.py
 """
 from __future__ import annotations
 
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import venv
@@ -155,19 +160,76 @@ def ensure_monitoring_artefacts() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Detecção de porta livre (mac tem AirPlay Receiver na 5000)
+# ─────────────────────────────────────────────────────────────────────────────
+PORT_CANDIDATES = (5000, 5001, 5050, 5080, 8000, 8080, 8081, 3000)
+
+
+def _is_port_free(port: int, host: str = "127.0.0.1") -> bool:
+    """True se consegue bindar a porta (0.0.0.0 e 127.0.0.1)."""
+    for h in (host, "0.0.0.0"):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind((h, port))
+        except OSError:
+            s.close()
+            return False
+        s.close()
+    return True
+
+
+def resolve_port() -> int:
+    """Escolhe a porta a usar. Ordem:
+    1. Se PORT env var está setada, usa ela (ou aborta se ocupada).
+    2. Tenta 5000 (padrão). Se ocupada (ex: AirPlay no mac), tenta 5001, 5050, 5080, 8000, 8080, 8081, 3000.
+    3. Aborta se nenhuma dessas estiver livre.
+    """
+    forced = os.getenv("PORT")
+    if forced:
+        try:
+            p = int(forced)
+        except ValueError:
+            die(f"PORT='{forced}' não é um inteiro válido.")
+        if not _is_port_free(p):
+            die(
+                f"Porta {p} (forçada via env PORT) já está em uso.\n"
+                "Libere-a ou escolha outra: PORT=8000 python run.py"
+            )
+        return p
+
+    for p in PORT_CANDIDATES:
+        if _is_port_free(p):
+            return p
+    die(
+        "Nenhuma porta livre encontrada em "
+        f"{PORT_CANDIDATES}.\n"
+        "Libere uma delas ou force via: PORT=9000 python run.py"
+    )
+    return 0  # unreachable, mas satisfaz o type checker
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Servidor
 # ─────────────────────────────────────────────────────────────────────────────
-def run_server() -> None:
+def run_server(port: int) -> None:
     print(
-        "\n=================================================="
-        "\n  Acesse:   http://localhost:5000/"
-        "\n  API:      http://localhost:5000/api/"
-        "\n  Monitor:  http://localhost:5000/monitoramento/"
-        "\n==================================================\n"
+        f"\n=================================================="
+        f"\n  Acesse:   http://localhost:{port}/"
+        f"\n  API:      http://localhost:{port}/api/"
+        f"\n  Monitor:  http://localhost:{port}/monitoramento/"
+        f"\n==================================================\n"
     )
+    if port != 5000:
+        print(
+            f"  (porta {port} escolhida automaticamente — "
+            "a 5000 está em uso, típico em Mac com AirPlay Receiver)\n"
+        )
+    env = os.environ.copy()
+    env["PORT"] = str(port)
     try:
         # Foreground: Ctrl+C encerra
-        subprocess.run([str(VENV_PY), "main.py"], cwd=BACKEND_DIR, check=False)
+        subprocess.run([str(VENV_PY), "main.py"], cwd=BACKEND_DIR, check=False, env=env)
     except KeyboardInterrupt:
         print("\n  Encerrando...")
 
@@ -196,7 +258,8 @@ def main() -> None:
 
     step(4, 4, "Artefatos do monitoramento e servidor")
     ensure_monitoring_artefacts()
-    run_server()
+    port = resolve_port()
+    run_server(port)
 
 
 if __name__ == "__main__":
