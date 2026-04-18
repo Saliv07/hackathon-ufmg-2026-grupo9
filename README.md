@@ -177,49 +177,40 @@ https://github.com/<usuario-ou-org>/hackathon-ufmg-2026-grupo<N>
 
 ## 🚀 Como Executar o Projeto
 
-Para rodar a plataforma jurídica do **Grupo 9** localmente, você precisa inicializar o **backend (Python)** e o **frontend (Vite/React)** em terminais separados.
+Para facilitar a vida do desenvolvedor, criamos scripts que configuram o ambiente e iniciam tanto o **Backend** quanto o **Frontend** com um único comando.
 
 ### 1. Pré-requisitos
 - **Node.js** (v18 ou superior)
 - **Python** (v3.9 ou superior)
-- Chave da API da OpenAI
+- Uma chave da API da OpenAI (configurada no arquivo `.env`)
 
-### 2. Configuração de Variáveis de Ambiente
-Na raiz do projeto, copie o arquivo de exemplo e crie o `.env`:
-```bash
-cp .env.example .env
-```
-Abra o `.env` e preencha sua chave da OpenAI:
+### 2. Configuração Inicial
+Certifique-se de que o arquivo `.env` existe na raiz do projeto e contém sua chave:
 ```env
 OPENAI_API_KEY=sk-sua-chave-aqui
 ```
 
-### 3. Rodando o Backend (Python / Flask)
-Abra um terminal e execute:
-```bash
-cd backend
+### 3. Execução Rápida (Recomendado)
 
-# (Opcional) Crie e ative um ambiente virtual
-python -m venv venv
-source venv/bin/activate  # ou venv\Scripts\activate no Windows
-
-# Instale as dependências
-pip install -r requirements.txt
-
-# Inicie o servidor
-python main.py
+#### No Windows:
+Abra o terminal na raiz do projeto e rode:
+```powershell
+.\run.ps1
 ```
-O backend estará rodando em `http://localhost:5000`.
+*Este script criará o ambiente virtual do Python, instalará as dependências e abrirá o backend em uma nova janela.*
 
-### 4. Rodando o Frontend (Vite / React)
-Abra um novo terminal e execute:
+#### No Linux ou macOS:
+Abra o terminal na raiz do projeto e rode:
 ```bash
-cd frontend
-
-# Instale as dependências
-npm install
-
-# Inicie o servidor de desenvolvimento
-npm run dev
+bash run.sh
 ```
-O frontend estará acessível em `http://localhost:5173`. Acesse essa URL no navegador e faça login para usar a plataforma!
+
+---
+
+## 🛠️ Estrutura do Projeto
+
+- `backend/`: API Flask (Python) para processamento de documentos e IA.
+- `frontend/`: Interface React (Vite) para visualização e chat.
+- `data/`: Bases de dados e documentos de exemplo.
+- `docs/`: Documentação e apresentações.
+- `run.ps1` / `run.sh`: Scripts de automação.

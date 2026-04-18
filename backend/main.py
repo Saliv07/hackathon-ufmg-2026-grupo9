@@ -90,10 +90,19 @@ def _load_historical():
     global _HISTORICAL_HEADERS, _HISTORICAL_ROWS
     try:
         import openpyxl
+        # Caminho oficial (fora do repo)
         xlsx_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             "Docs Hackkaton", "drive-dowload", "Hackaton_Enter_Base_Candidatos.xlsx"
         )
+        # Caminho alternativo (dentro do repo se alguém copiou pra lá)
+        if not os.path.exists(xlsx_path):
+            xlsx_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "Hackaton_Enter_Base_Candidatos.xlsx")
+
+        if not os.path.exists(xlsx_path):
+            print(f"WARNING: Historical Excel not found at {xlsx_path}. Running with mocked data only.")
+            return
+
         wb = openpyxl.load_workbook(xlsx_path, read_only=True)
         ws = wb["Resultados dos processos"]
         rows = []
@@ -133,7 +142,7 @@ def get_historical():
                     if str(r.get("Resultado macro", "")).lower().replace('ê', 'e') == f]
 
     # Ordenação
-    if sort_by in _HISTORICAL_HEADERS:
+    if _HISTORICAL_HEADERS and sort_by in _HISTORICAL_HEADERS:
         def sort_key(row):
             val = row.get(sort_by, "")
             # Tenta converter para número se a coluna for de valores financeiros
