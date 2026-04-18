@@ -48,6 +48,16 @@ SUBS_COLS = [
 
 def load_raw(xlsx_path=XLSX_BASE) -> pd.DataFrame:
     """Lê as duas abas do xlsx, normaliza nomes e faz o merge."""
+    from pathlib import Path
+    xlsx_path = Path(xlsx_path)
+    if not xlsx_path.exists():
+        raise FileNotFoundError(
+            f"Arquivo base não encontrado: {xlsx_path}\n"
+            "Esperado em um destes caminhos:\n"
+            "  - data/Hackaton_Enter_Base_Candidatos.xlsx (padrão)\n"
+            "  - data/raw/Hackaton_Enter_Base_Candidatos.xlsx (legado)\n"
+            "Verifique se o arquivo está versionado ou copie-o manualmente."
+        )
     res = pd.read_excel(xlsx_path, sheet_name="Resultados dos processos")
     sub = pd.read_excel(xlsx_path, sheet_name="Subsídios disponibilizados", header=1)
 
