@@ -27,26 +27,171 @@ DATA_FINAL = pd.Timestamp("2026-03-31")
 # Fonte única da verdade — counterfactual.py importa daqui.
 ACORDO_PCT_CAUSA = 0.30
 
-ESCRITORIOS = pd.DataFrame({
-    "escritorio_id": [f"ESC{i:02d}" for i in range(1, 11)],
-    "aderencia_base": [0.95, 0.93, 0.92, 0.85, 0.83, 0.80, 0.78, 0.68, 0.64, 0.60],
-    "regiao": ["SE", "SE", "S", "S", "NE", "NE", "N", "CO", "N", "NE"],
-})
+
+# ---------------------------------------------------------------------------
+# Catálogos determinísticos usados para atribuir nomes próprios PT-BR.
+# Ordem é parte da API (seed=42 + rng.choice). Mudanças aqui reposicionam
+# advogados; manter a lista estável preserva reprodutibilidade.
+# ---------------------------------------------------------------------------
+
+NOMES_ESCRITORIOS = [
+    "Pereira & Associados",
+    "Azevedo, Costa e Silva",
+    "Ribeiro Advocacia",
+    "Mendonça, Vasconcelos e Carvalho",
+    "Andrade Nogueira Sociedade de Advogados",
+    "Tavares & Mourão Advogados",
+    "Lima, Fontes e Machado",
+    "Barros, Rocha e Moura",
+    "Siqueira Campos Advocacia",
+    "Queiroz, Figueiredo e Bastos",
+    "Duarte & Bittencourt Advogados",
+    "Castanheira, Almeida e Rezende",
+    "Vilas Boas Sociedade de Advogados",
+    "Macedo, Fernandes e Gusmão",
+    "Coelho, Prado e Teixeira Advogados",
+]
+
+# Cidades-sede plausíveis por macrorregião IBGE. rng.choice escolhe uma.
+CIDADES_POR_REGIAO = {
+    "SE": ["São Paulo - SP", "Rio de Janeiro - RJ", "Belo Horizonte - MG", "Vitória - ES"],
+    "S": ["Curitiba - PR", "Porto Alegre - RS", "Florianópolis - SC"],
+    "NE": ["Salvador - BA", "Recife - PE", "Fortaleza - CE", "São Luís - MA"],
+    "N": ["Manaus - AM", "Belém - PA", "Palmas - TO"],
+    "CO": ["Brasília - DF", "Goiânia - GO", "Cuiabá - MT"],
+}
+
+# UF predominante por região (para gerar número de OAB condizente).
+UF_POR_REGIAO = {
+    "SE": ["SP", "RJ", "MG", "ES"],
+    "S": ["PR", "RS", "SC"],
+    "NE": ["BA", "PE", "CE", "MA"],
+    "N": ["AM", "PA", "TO"],
+    "CO": ["DF", "GO", "MT"],
+}
+
+# Primeiros nomes PT-BR com diversidade de gênero e região.
+PRIMEIROS_NOMES = [
+    "Mariana", "Carlos Eduardo", "Fernanda", "Rafael", "Juliana",
+    "Pedro Henrique", "Camila", "Lucas", "Beatriz", "Thiago",
+    "Larissa", "Gustavo", "Patrícia", "Rodrigo", "Amanda",
+    "Felipe", "Isabela", "Bruno", "Letícia", "Marcelo",
+    "Carolina", "Gabriel", "Renata", "Eduardo", "Natália",
+    "Vinícius", "Aline", "Leonardo", "Tatiana", "Diego",
+    "Priscila", "Henrique", "Sabrina", "André", "Raquel",
+    "Daniel", "Vanessa", "Ricardo", "Bianca", "Matheus",
+    "Cláudia", "Fábio", "Simone", "Paulo", "Débora",
+    "José Antônio", "Luciana", "Roberto", "Márcia", "Sérgio",
+    "Adriana", "Otávio", "Helena", "Alexandre", "Sofia",
+    "Vítor", "Elaine", "Joaquim", "Flávia", "Murilo",
+]
+
+# Sobrenomes PT-BR comuns. Diversidade de origens (portuguesa, italiana, libanesa).
+SOBRENOMES = [
+    "Azevedo", "Ribeiro", "Costa", "Oliveira", "Carvalho",
+    "Souza", "Rodrigues", "Almeida", "Mendes", "Barbosa",
+    "Cavalcanti", "Nogueira", "Cardoso", "Moreira", "Teixeira",
+    "Fonseca", "Pinheiro", "Araújo", "Vasconcelos", "Siqueira",
+    "Machado", "Coelho", "Duarte", "Bittencourt", "Queiroz",
+    "Figueiredo", "Tavares", "Moura", "Rocha", "Nascimento",
+]
+
+
+def _gerar_nomes_advogados(rng: np.random.Generator, n: int) -> np.ndarray:
+    """Sorteia N nomes completos únicos combinando primeiro_nome + sobrenome.
+
+    Mantém vetorização (rng.choice em bulk) e garante unicidade via pós-processo
+    determinístico: colisões recebem sufixo numérico estável.
+    """
+    primeiros = rng.choice(np.array(PRIMEIROS_NOMES), size=n)
+    sobrenomes_a = rng.choice(np.array(SOBRENOMES), size=n)
+    sobrenomes_b = rng.choice(np.array(SOBRENOMES), size=n)
+    nomes = [
+        f"{p} {sa}" if sa == sb else f"{p} {sa} {sb}"
+        for p, sa, sb in zip(primeiros, sobrenomes_a, sobrenomes_b)
+    ]
+    # Desambigua duplicatas preservando ordem
+    vistos: dict[str, int] = {}
+    final: list[str] = []
+    for nome in nomes:
+        c = vistos.get(nome, 0)
+        if c == 0:
+            final.append(nome)
+        else:
+            final.append(f"{nome} {_roman(c + 1)}")
+        vistos[nome] = c + 1
+    return np.array(final, dtype=object)
+
+
+def _roman(n: int) -> str:
+    """Sufixo romano simples (II, III, IV). n <= 10 cobre todos os casos aqui."""
+    mapa = {2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X"}
+    return mapa.get(n, f"({n})")
+
+
+def _gerar_oab(rng: np.random.Generator, regioes: np.ndarray) -> np.ndarray:
+    """Gera números de OAB formatados 'OAB/UF XXX.XXX' com UF da região do escritório."""
+    ufs = np.array([
+        rng.choice(np.array(UF_POR_REGIAO[r])) for r in regioes
+    ])
+    numeros = rng.integers(30_000, 500_000, size=len(regioes))
+    return np.array([
+        f"OAB/{uf} {num // 1000:03d}.{num % 1000:03d}"
+        for uf, num in zip(ufs, numeros)
+    ], dtype=object)
+
+
+def _montar_escritorios(rng: np.random.Generator) -> pd.DataFrame:
+    """Constrói o catálogo de 10 escritórios com nome e cidade-sede."""
+    aderencia_base = [0.95, 0.93, 0.92, 0.85, 0.83, 0.80, 0.78, 0.68, 0.64, 0.60]
+    regioes = ["SE", "SE", "S", "S", "NE", "NE", "N", "CO", "N", "NE"]
+    n = len(aderencia_base)
+
+    # Sorteia 10 nomes distintos do catálogo de 15 (reprodutível com seed=42).
+    nomes = rng.choice(np.array(NOMES_ESCRITORIOS), size=n, replace=False)
+    cidades = np.array([rng.choice(np.array(CIDADES_POR_REGIAO[r])) for r in regioes])
+
+    return pd.DataFrame({
+        "escritorio_id": [f"ESC{i:02d}" for i in range(1, n + 1)],
+        "escritorio_nome": nomes,
+        "aderencia_base": aderencia_base,
+        "regiao": regioes,
+        "cidade_sede": cidades,
+    })
+
+
+# Catálogo resolvido com seed fixa — mantém a API pública (import ESCRITORIOS)
+# compatível com qualquer código externo que leia o DataFrame.
+ESCRITORIOS = _montar_escritorios(np.random.default_rng(SEED))
 
 RAZOES_OVERRIDE = ["discordancia_score", "info_nova", "neg_em_andamento", "erro_ferramenta", "outro"]
 PROBS_RAZOES = [0.40, 0.25, 0.15, 0.10, 0.10]
 
 
 def gerar_advogados(rng: np.random.Generator, n: int = 50) -> pd.DataFrame:
-    """Distribui N advogados entre os 10 escritórios (H5) com desvio individual ±5pp."""
+    """Distribui N advogados entre os 10 escritórios (H5) com desvio individual ±5pp.
+
+    Além dos campos estruturais (ids e aderência esperada), produz:
+      - advogado_nome: nome próprio PT-BR realista
+      - numero_oab: OAB/UF condizente com a região do escritório
+      - escritorio_nome: nome do escritório (copiado do catálogo)
+    """
     esc_idx = np.arange(n) % len(ESCRITORIOS)
     base = ESCRITORIOS["aderencia_base"].to_numpy()[esc_idx]
     ruido = rng.normal(0.0, 0.05, size=n)
     aderencia_indiv = np.clip(base + ruido, 0.40, 0.99)
+
+    regioes = ESCRITORIOS["regiao"].to_numpy()[esc_idx]
+    nomes_adv = _gerar_nomes_advogados(rng, n)
+    oab = _gerar_oab(rng, regioes)
+
     return pd.DataFrame({
         "advogado_id": [f"ADV{i+1:03d}" for i in range(n)],
+        "advogado_nome": nomes_adv,
+        "numero_oab": oab,
         "escritorio_id": ESCRITORIOS["escritorio_id"].to_numpy()[esc_idx],
-        "regiao": ESCRITORIOS["regiao"].to_numpy()[esc_idx],
+        "escritorio_nome": ESCRITORIOS["escritorio_nome"].to_numpy()[esc_idx],
+        "regiao": regioes,
         "aderencia_esperada": aderencia_indiv,
     })
 
@@ -152,9 +297,16 @@ def build() -> pd.DataFrame:
     advogados = gerar_advogados(rng)
     idx_adv = rng.integers(0, len(advogados), size=len(df))
     df["advogado_id"] = advogados["advogado_id"].to_numpy()[idx_adv]
+    df["advogado_nome"] = advogados["advogado_nome"].to_numpy()[idx_adv]
+    df["numero_oab"] = advogados["numero_oab"].to_numpy()[idx_adv]
     df["escritorio_id"] = advogados["escritorio_id"].to_numpy()[idx_adv]
+    df["escritorio_nome"] = advogados["escritorio_nome"].to_numpy()[idx_adv]
     df["regiao"] = advogados["regiao"].to_numpy()[idx_adv]
     df["aderencia_esperada"] = advogados["aderencia_esperada"].to_numpy()[idx_adv]
+
+    # Cidade-sede vem do catálogo de escritórios (1-para-1 com escritorio_id).
+    cidade_map = dict(zip(ESCRITORIOS["escritorio_id"], ESCRITORIOS["cidade_sede"]))
+    df["cidade_sede_escritorio"] = df["escritorio_id"].map(cidade_map)
 
     data_distribuicao, data_decisao, tempo_min = gerar_datas(rng, len(df))
     df["data_distribuicao"] = data_distribuicao.to_numpy()
@@ -183,9 +335,19 @@ if __name__ == "__main__":
     print(f"Shape: {df.shape}")
     print(f"Colunas ({len(df.columns)}): {df.columns.tolist()}")
     print(f"\nTaxa de aderência geral: {df['aderente'].mean():.2%}")
+    print("\nEscritórios (id, nome, cidade, aderência base):")
+    print(ESCRITORIOS[["escritorio_id", "escritorio_nome", "cidade_sede", "aderencia_base"]])
+    print("\nAmostra de advogados sorteados no dataset:")
+    print(
+        df[["advogado_id", "advogado_nome", "numero_oab", "escritorio_nome"]]
+        .drop_duplicates("advogado_id")
+        .sort_values("advogado_id")
+        .head(10)
+        .to_string(index=False)
+    )
     print("\nAderência por escritório:")
     print(
-        df.groupby("escritorio_id")["aderente"]
+        df.groupby(["escritorio_id", "escritorio_nome"])["aderente"]
         .agg(["mean", "count"])
         .sort_values("mean")
     )

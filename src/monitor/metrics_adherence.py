@@ -32,27 +32,51 @@ def distribuicao_acao(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def aderencia_por_advogado(df: pd.DataFrame) -> pd.DataFrame:
-    """A05 — ranking de aderência por advogado."""
+    """A05 — ranking de aderência por advogado.
+
+    Quando as colunas `advogado_nome` / `numero_oab` / `escritorio_nome` existem
+    no df (datasets gerados a partir de `gerar_sintetico.build`), elas são
+    preservadas no ranking para que o dashboard exiba o nome próprio ao lado do
+    ID. Mantém compatibilidade com dataframes mínimos usados nos testes.
+    """
+    agg = {
+        "aderencia": ("aderente", "mean"),
+        "n_casos": ("numero_processo", "count"),
+        "escritorio": ("escritorio_id", "first"),
+    }
+    if "advogado_nome" in df.columns:
+        agg["advogado_nome"] = ("advogado_nome", "first")
+    if "numero_oab" in df.columns:
+        agg["numero_oab"] = ("numero_oab", "first")
+    if "escritorio_nome" in df.columns:
+        agg["escritorio_nome"] = ("escritorio_nome", "first")
+
     return (
         df.groupby("advogado_id")
-        .agg(
-            aderencia=("aderente", "mean"),
-            n_casos=("numero_processo", "count"),
-            escritorio=("escritorio_id", "first"),
-        )
+        .agg(**agg)
         .sort_values("aderencia")
     )
 
 
 def aderencia_por_escritorio(df: pd.DataFrame) -> pd.DataFrame:
-    """A06 — ranking de aderência por escritório."""
+    """A06 — ranking de aderência por escritório.
+
+    Inclui `escritorio_nome` e `cidade_sede_escritorio` quando presentes, para
+    rotulagem humana no dashboard sem alterar a lógica de agregação.
+    """
+    agg = {
+        "aderencia": ("aderente", "mean"),
+        "n_casos": ("numero_processo", "count"),
+        "n_advogados": ("advogado_id", "nunique"),
+    }
+    if "escritorio_nome" in df.columns:
+        agg["escritorio_nome"] = ("escritorio_nome", "first")
+    if "cidade_sede_escritorio" in df.columns:
+        agg["cidade_sede"] = ("cidade_sede_escritorio", "first")
+
     return (
         df.groupby("escritorio_id")
-        .agg(
-            aderencia=("aderente", "mean"),
-            n_casos=("numero_processo", "count"),
-            n_advogados=("advogado_id", "nunique"),
-        )
+        .agg(**agg)
         .sort_values("aderencia")
     )
 
