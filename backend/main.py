@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 from data import CASES, RAW_STATS
 from services.stats_service import calculate_macro_stats
 from services.policy_service import get_policy_text, load_policy
+from services.model_service import load_model as load_xgboost, predict as model_predict
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 api_key = os.getenv("OPENAI_API_KEY")
@@ -21,6 +22,13 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 client = OpenAI(api_key=api_key)
 
 STATS = calculate_macro_stats(RAW_STATS)
+
+# ── Carrega modelo XGBoost ─────────────────────────────────────────────────────
+_model_ok = load_xgboost()
+if _model_ok:
+    print("DEBUG: Modelo XGBoost pronto para predições")
+else:
+    print("WARNING: Modelo XGBoost NÃO carregado")
 
 ALLOWED_MODELS = {'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'}
 
@@ -245,10 +253,34 @@ def analyze_case():
         "Seja objetivo, claro e fundamente suas conclusões nos fatos disponíveis."
     )
 
+    # ── Predição do XGBoost ───────────────────────────────────────────────
+    case_data = data.get('case_data', {})
+    prediction = model_predict(case_data)
+
+    model_context = ""
+    if prediction.get('model_loaded'):
+        prob = prediction['probability']
+        features = prediction['features']
+        subsidios_presentes = [k for k, v in features.items()
+                              if v == 1 and k not in ('is_golpe', 'uf_alto', 'uf_medio')]
+        subsidios_ausentes = [k for k, v in features.items()
+                             if v == 0 and k not in ('is_golpe', 'uf_alto', 'uf_medio')]
+
+        model_context = (
+            f"\n\n## Análise de Risco Processual (base: 60.000 processos históricos)\n"
+            f"- **Probabilidade de ACORDO**: {prob*100:.1f}%\n"
+            f"- **Confiança**: {prediction['confidence']}\n"
+            f"- **Subsídios presentes**: {', '.join(subsidios_presentes) or 'Nenhum'}\n"
+            f"- **Subsídios ausentes**: {', '.join(subsidios_ausentes) or 'Nenhum'}\n"
+        )
+        if features.get('uf_alto'):
+            model_context += "- UF de alto risco (AM/AP)\n"
+
     user_content = (
         f"## Dados do Processo\n{case_context}"
         f"{docs_context}"
         f"{stats_context}"
+        f"{model_context}"
         f"\n\n## Pergunta do Advogado\n{user_message}"
     )
 
