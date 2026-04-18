@@ -122,6 +122,16 @@ def get_df_com_politica() -> tuple[pd.DataFrame | None, str]:
     csv_path = DATA_PROCESSED / "politica_output.csv"
     if csv_path.exists():
         politica = pd.read_csv(csv_path)
+        # CSV do XGBoost prevalece sobre o mock do gerador sintético.
+        # Remove as colunas de política do enriquecido para evitar colisão
+        # (_x / _y) no merge — a `acao_tomada` e `valor_acordo_proposto`
+        # continuam vindo do enriquecido (são a ação efetiva do advogado).
+        colunas_mock = [
+            c for c in ("acao_recomendada", "valor_acordo_recomendado",
+                        "score_confianca")
+            if c in df_enr.columns
+        ]
+        df_enr = df_enr.drop(columns=colunas_mock)
         merged = df_enr.merge(politica, on="numero_processo", how="left")
         return merged, "csv"
     return df_enr, "mock"
