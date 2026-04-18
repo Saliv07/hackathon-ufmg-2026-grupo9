@@ -5,12 +5,14 @@ import base64
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+
 from openai import OpenAI
 from werkzeug.utils import secure_filename
 from data import CASES, RAW_STATS
 from services.stats_service import calculate_macro_stats
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 api_key = os.getenv("OPENAI_API_KEY")
 print(f"DEBUG: OpenAI API Key loaded: {bool(api_key)}")
 
@@ -74,6 +76,10 @@ def serve_document(case_id, doc_id):
 
 
 # ── Stats ──────────────────────────────────────────────────────────────────────
+
+@app.route("/", methods=["GET"])
+def index():
+    return "<h1>Backend da API Python rodando com sucesso.</h1><p>Acesse o Frontend (Vite) pelo endereço <b>http://localhost:5000</b>. Você acessou a porta 5001 diretamente no navegador!</p>"
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
