@@ -954,8 +954,11 @@ def create_dash_app(flask_server):
             mode="lines+markers",
             line=dict(color=Colors.ACCENT, width=3),
             marker=dict(size=6, color=Colors.ACCENT),
-            name="Economia potencial",
-            hovertemplate="prob_aceita=%{x:.2f}<br>Economia: R$ %{y:,.0f}<extra></extra>",
+            name="Economia estimada",
+            hovertemplate=(
+                "Taxa de aceitação: %{x:.0%}<br>"
+                "Economia estimada: R$ %{y:,.0f}<extra></extra>"
+            ),
         ))
         mask_slider = np.isclose(df_sens["prob_aceita_assumida"], prob_aceita)
         if mask_slider.any():
@@ -967,16 +970,19 @@ def create_dash_app(flask_server):
             mode="markers",
             marker=dict(size=18, color=Colors.ACCENT, symbol="star",
                         line=dict(width=2, color=Colors.ACCENT_HOVER)),
-            name="Slider atual",
+            name="Cenário atual",
             hovertemplate=(
-                "<b>Slider atual</b><br>"
-                "prob_aceita=%{x:.2f}<br>"
-                "Economia: R$ %{y:,.0f}<extra></extra>"
+                "<b>Cenário atual</b><br>"
+                "Taxa de aceitação: %{x:.0%}<br>"
+                "Economia estimada: R$ %{y:,.0f}<extra></extra>"
             ),
         ))
         fig.update_layout(
-            xaxis_title="Probabilidade de aceitação do acordo",
-            yaxis_title="Economia total (R$)",
+            xaxis=dict(
+                title="Taxa de aceitação do acordo pelo autor",
+                tickformat=".0%",
+            ),
+            yaxis_title="Economia estimada (R$)",
             margin=dict(l=10, r=10, t=10, b=10),
             showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -1250,13 +1256,13 @@ def create_dash_app(flask_server):
         if alertas:
             linhas_al = [
                 html.Tr([
-                    html.Th("ID"), html.Th("Métrica"),
+                    html.Th("Métrica"),
                     html.Th("Valor"), html.Th("Threshold"), html.Th("Mensagem"),
                 ])
             ]
             for a in alertas:
                 linhas_al.append(html.Tr([
-                    html.Td(a["id"]), html.Td(a["nome"]),
+                    html.Td(a["nome"]),
                     html.Td(fmt_pct(a["valor"])),
                     html.Td(fmt_pct(a["threshold"])),
                     html.Td(a["mensagem"]),
@@ -1295,7 +1301,7 @@ def create_dash_app(flask_server):
     # ============================================================
     def render_efetividade(filtros: dict, prob_aceita: float) -> list:
         baseline = load_baseline()
-        df_pol, fonte = get_df_com_politica()
+        df_pol, _fonte = get_df_com_politica()
         if df_pol is None:
             return [info_box(
                 "Dataset enriquecido ainda não disponível. "
@@ -1427,7 +1433,7 @@ def create_dash_app(flask_server):
             headline(insight, fmt_brl_compact(economia_potencial), subtxt),
             kpi_row,
             section_divider("Métricas principais"),
-            chart_wrap("E02 · Sensibilidade × prob_aceita",
+            chart_wrap("E02 · Sensibilidade da economia à taxa de aceitação",
                        fig_sens, "fig-sens"),
             html.Div([
                 temp_section,
@@ -1437,10 +1443,6 @@ def create_dash_app(flask_server):
             section_divider("Drill-down"),
             html.Div([cp_section, hist_section], className="grid-2"),
             det_section,
-            html.Div(
-                f"Fonte: {fonte.upper()} · prob_aceita: {prob_aceita:.0%}",
-                className="monitor-footer-caption",
-            ),
         ]
 
     # ============================================================

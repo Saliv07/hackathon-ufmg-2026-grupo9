@@ -189,14 +189,22 @@ def alertas_ativos(df: pd.DataFrame) -> list[dict]:
 
     por_adv = aderencia_por_advogado(df)
     for adv_id, row in por_adv[por_adv["aderencia"] < 0.60].iterrows():
+        # Usa nome próprio quando disponível (gerar_sintetico populou as
+        # colunas advogado_nome / escritorio_nome); fallback pro ID em
+        # datasets mais simples (df_mini dos testes).
+        adv_label = row["advogado_nome"] if "advogado_nome" in row and row["advogado_nome"] else adv_id
+        esc_label = (
+            row["escritorio_nome"] if "escritorio_nome" in row and row["escritorio_nome"]
+            else row.get("escritorio", "")
+        )
         alertas.append({
             "id": "A05",
-            "nome": f"Aderência individual crítica — {adv_id}",
+            "nome": f"Aderência individual crítica — {adv_label}",
             "severidade": "P0",
             "valor": float(row["aderencia"]),
             "threshold": 0.60,
             "mensagem": (
-                f"{adv_id} ({row['escritorio']}) em {row['aderencia']:.1%} — "
+                f"{adv_label} ({esc_label}) em {row['aderencia']:.1%} — "
                 "requer intervenção"
             ),
         })
