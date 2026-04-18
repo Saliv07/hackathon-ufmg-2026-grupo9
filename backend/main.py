@@ -7,19 +7,38 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
 from werkzeug.utils import secure_filename
-from data import CASES, RAW_STATS
-from services.stats_service import calculate_macro_stats, load_historical_snapshot
+try:
+    # Suporta execucao direta: `python backend/main.py`
+    from data import CASES, RAW_STATS
+    from services.stats_service import calculate_macro_stats, load_historical_snapshot
+    from services.policy_service import get_policy_text, load_policy
+    from services.model_service import load_model as load_xgboost, predict as model_predict
+except ImportError:
+    # Suporta execucao como modulo: `python -m backend.main`
+    from backend.data import CASES, RAW_STATS
+    from backend.services.stats_service import calculate_macro_stats, load_historical_snapshot
+    from backend.services.policy_service import get_policy_text, load_policy
+    from backend.services.model_service import load_model as load_xgboost, predict as model_predict
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 api_key = os.getenv("OPENAI_API_KEY")
 print(f"DEBUG: OpenAI API Key loaded: {bool(api_key)}")
 
 app = Flask(__name__)
+# O frontend roda em outra porta durante o desenvolvimento (Vite em 5173),
+# então precisamos liberar CORS para todos os endpoints /api/*.
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 client = OpenAI(api_key=api_key)
 
 STATS = calculate_macro_stats(RAW_STATS)
+
+# ── Carrega modelo XGBoost ─────────────────────────────────────────────────────
+_model_ok = load_xgboost()
+if _model_ok:
+    print("DEBUG: Modelo XGBoost pronto para predições")
+else:
+    print("WARNING: Modelo XGBoost NÃO carregado")
 
 ALLOWED_MODELS = {'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'}
 
@@ -180,50 +199,83 @@ def analyze_case():
             docs_context += f"\n### {title} ({doc_type})\n{content}\n"
 
     # Monta contexto do dashboard (base histórica)
-    policy_projection = STATS.get("policy_projection")
-    policy_projection_context = ""
-    if policy_projection:
-        projection_mode = (
-            "política híbrida (regras + XGBoost)"
-            if policy_projection.get("projection_type") == "hybrid_policy_engine_v2_1"
-            else "política determinística"
-        )
-        policy_projection_context = (
-            f"\n- Cenário com política v2.1 usando {projection_mode}: gasto total histórico de "
-            f"R$ {policy_projection['actual_total_cost']:,.2f} cairia para "
-            f"R$ {policy_projection['projected_total_cost']:,.2f}, com economia "
-            f"estimada de R$ {policy_projection['estimated_savings']:,.2f}."
-        )
-
     stats_context = (
         "\n\n## Base Histórica — Banco UFMG (60.000 processos)\n"
-        f"- Taxa de Êxito do banco: **{STATS['success_rate']}%** "
+        f"- Taxa de Êxito do banco: *{STATS['success_rate']}%* "
         f"(Improcedência + Extinção = banco ganha)\n"
-        f"- Taxa de Não Êxito: **{STATS['loss_rate']}%** "
+        f"- Taxa de Não Êxito: *{STATS['loss_rate']}%* "
         f"(Parcial procedência + Procedência = banco perde)\n"
-        f"- Acordos realizados até hoje: **{STATS['agreement_rate']}%** "
+        f"- Acordos realizados até hoje: *{STATS['agreement_rate']}%* "
         f"(apenas 280 de 60.000 casos)\n"
         "- Detalhamento micro: "
         + ", ".join(f"{d['label']} {d['value']}%" for d in STATS['detailed'])
-        + policy_projection_context
-        + "\n- **Insight**: há 18.267 casos de não êxito que poderiam ter sido acordados "
+        + "\n- *Insight*: há 18.267 casos de não êxito que poderiam ter sido acordados "
         "com valor controlado, potencialmente reduzindo o ticket médio de condenação em ~60%."
     )
 
     system_prompt = (
         "Você é um Agente Jurídico especialista em política de acordos para o Banco UFMG. "
         "Sua função é analisar processos de não reconhecimento de contratação de empréstimo consignado "
-        "e recomendar ACORDO ou DEFESA com base nos documentos e na política do banco.\n\n"
-        "Use os dados da Base Histórica para embasar probabilidades e estimativas financeiras. "
-        "Use os Documentos Abertos como fonte primária para analisar o caso específico. "
+        "e recomendar ACORDO ou DEFESA.\n\n"
+
+        "## Sua Base de Conhecimento\n"
+        "Você deve seguir RIGOROSAMENTE a Política de Acordos abaixo. "
+        "Use o modelo preditivo como informação complementar para embasar sua justificativa.\n\n"
+
+        f"## Política de Acordos\n{get_policy_text()}\n\n"
+
+        "## Como Usar o Modelo Preditivo XGBoost\n"
+        "- O modelo foi treinado em 60.000 processos históricos do banco\n"
+        "- Ele retorna uma probabilidade calibrada de que o caso deveria ser ACORDO\n"
+        "- Use essa probabilidade para complementar e justificar sua análise\n"
+        "- A Política de Acordos sempre prevalece sobre o modelo\n\n"
+
+        "## Formato da Resposta\n"
+        "REGRA FUNDAMENTAL: Responda EXATAMENTE o que o advogado pedir. "
+        "Se ele pedir 'apenas o valor', responda só o valor. "
+        "Se pedir 'apenas a recomendação', responda só a recomendação. "
+        "Se fizer uma saudação, responda cordialmente. "
+        "Use o formato estruturado completo SOMENTE quando for pedida uma análise completa do caso ou uma explicação do por que deu um resultado, por exemplo: 'Por que o resultado deu para defender?'.\n\n"
+        "Quando for uma análise de caso, estruture assim:\n"
+        "1. Recomendação: ACORDO ou DEFESA (em destaque)\n"
+        "2. Justificativa pela Política: qual cenário da matriz se aplica e por quê\n"
+        "3. Modelo Preditivo: cite a probabilidade como informação complementar. NÃO MENCIONE DIRETAMENTE O MODELO. POR MAIS QUE ESTEJAMOS CALCULANDO A PROBABILIDADE DE ACORDO, NÃO UTILIZE ESSAS PALAVRAS, POIS PODE FICAR AMBÍGUO EM CASO DE RESULTADO = DEFESA. UTILIZE PROBABILIDADE DE ÊXITO NO PROCESSO, CASO SEJA O CASO\n"
+        "4. Fundamentação: análise dos documentos e subsídios disponíveis. MENCIONE OS SUBSIDEOS MAS NÃO MENCIONE OS CRITÉRIOS QUE USAMOS PARA A CLASSIFICAÇÃO\n"
+        "5. Valor Sugerido (se ACORDO): aplique a fórmula da política\n"
+        "6. Riscos e Atenções: pontos relevantes para o advogado\n\n"
+
         "Se o usuário citar um trecho entre aspas (precedido por '>'), analise especificamente aquele trecho. "
         "Seja objetivo, claro e fundamente suas conclusões nos fatos disponíveis."
     )
+
+    # ── Predição do XGBoost ───────────────────────────────────────────────
+    case_data = data.get('case_data', {})
+    prediction = model_predict(case_data)
+
+    model_context = ""
+    if prediction.get('model_loaded'):
+        prob = prediction['probability']
+        features = prediction['features']
+        subsidios_presentes = [k for k, v in features.items()
+                              if v == 1 and k not in ('is_golpe', 'uf_alto', 'uf_medio')]
+        subsidios_ausentes = [k for k, v in features.items()
+                             if v == 0 and k not in ('is_golpe', 'uf_alto', 'uf_medio')]
+
+        model_context = (
+            f"\n\n## Análise de Risco Processual (base: 60.000 processos históricos)\n"
+            f"- *Probabilidade de ACORDO*: {prob*100:.1f}%\n"
+            f"- *Confiança*: {prediction['confidence']}\n"
+            f"- *Subsídios presentes*: {', '.join(subsidios_presentes) or 'Nenhum'}\n"
+            f"- *Subsídios ausentes*: {', '.join(subsidios_ausentes) or 'Nenhum'}\n"
+        )
+        if features.get('uf_alto'):
+            model_context += "- UF de alto risco (AM/AP)\n"
 
     user_content = (
         f"## Dados do Processo\n{case_context}"
         f"{docs_context}"
         f"{stats_context}"
+        f"{model_context}"
         f"\n\n## Pergunta do Advogado\n{user_message}"
     )
 
