@@ -1256,13 +1256,13 @@ def create_dash_app(flask_server):
         if alertas:
             linhas_al = [
                 html.Tr([
-                    html.Th("ID"), html.Th("Métrica"),
+                    html.Th("Métrica"),
                     html.Th("Valor"), html.Th("Threshold"), html.Th("Mensagem"),
                 ])
             ]
             for a in alertas:
                 linhas_al.append(html.Tr([
-                    html.Td(a["id"]), html.Td(a["nome"]),
+                    html.Td(a["nome"]),
                     html.Td(fmt_pct(a["valor"])),
                     html.Td(fmt_pct(a["threshold"])),
                     html.Td(a["mensagem"]),
