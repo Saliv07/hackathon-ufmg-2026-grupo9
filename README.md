@@ -4,6 +4,12 @@
 
 ---
 
+## 🎥 Demo em vídeo
+
+Veja a aplicação funcionando: **https://youtu.be/Isxih7zVurc**
+
+---
+
 # 🚀 Início Rápido (Quick Start)
 
 Para rodar o projeto agora mesmo, siga estes passos:
