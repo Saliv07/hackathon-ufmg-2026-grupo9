@@ -65,6 +65,57 @@ Estas são as premissas que sustentam todas as métricas. Se alguma cai, o núme
 
 ## Log cronológico (mais recente primeiro)
 
+### [2026-04-17 20:50] Integração com output real do XGBoost (H2 e H3 substituídos)
+**Contexto:** a frente de modelagem versionou em `origin/master` os artefatos do modelo XGBoost treinado (`artefatos/modelo_xgboost.pkl`, AUC 0.91) e a política escrita em `docs/politica_acordo.md`. Nosso mock (`subs_total <= 3`, acordo fixo 30%) era placeholder até esses artefatos chegarem.
+**Decisão:** criar `src/monitor/politica_xgboost.py` que carrega o modelo, aplica a matriz híbrida da política (decisão por regra + ML quando há 2 subsídios críticos) e gera `data/processed/politica_output.csv` no formato esperado pelo `get_df_com_politica()` do dashboard. O mock antigo continua existindo (backward compat para testes).
+**Matriz aplicada (politica_acordo.md §3.3 + §4.2):**
+- 0-1 subsídios críticos (Contrato/Extrato/Comprovante) → acordo, fator 33%
+- 2 críticos → decisão do XGBoost (limiar 0.5), fator 30%
+- 3 críticos → defesa, fator 27%
+- UF alto risco (AM, AP) + ≤2 críticos → acordo (override), +2pp
+- UF baixo risco (fora de {AM, AP, GO, RS, BA, RJ, ES, DF, AL, SP, PE}) → −2pp
+**Resultado no dataset real:** 17.505 casos recomendados para acordo (29,18%), 42.495 para defesa (70,83%). Fator médio de acordo 31% (distribuição: 28/30/31/32/33/35). Score de confiança média: 0.91 para defesa, 0.72 para acordo.
+**Artefatos baixados de origin/master:** `artefatos/` (modelo + metadados), `scripts/01_prepare_data.py`, `scripts/02_train_model.py`, `docs/politica_acordo.md`.
+**.gitignore:** `artefatos/*.pkl`, `artefatos/X.pkl`, `artefatos/y.pkl`, `artefatos/dataset_completo.pkl` (pesados, devem ser baixados do origin/master sob demanda).
+**Dependências:** adicionadas `xgboost>=2.0` e `scikit-learn>=1.3` ao `requirements.txt`.
+**Impacto:** assunções H2 e H3 do mock ficam ativas como fallback quando o CSV não existe. Quando existe, o dashboard usa automaticamente a política real via `get_df_com_politica()`.
+**Revisitar se:** a frente de modelagem re-treinar o modelo (qualquer mudança em `features.json` exige revisar `preparar_features`); ou se a política formal for alterada em `docs/politica_acordo.md`.
+
+### [2026-04-17 20:30] Remoção da aba "Visão Geral" do dashboard de monitoramento
+**Contexto:** a plataforma React (`frontend/src/components/Dashboard.jsx`) já entrega o papel de visão executiva macro com os números do baseline pré-política. Manter uma aba "Visão Geral" no Streamlit duplicava escopo e diluía o foco do dashboard de monitoramento, que existe para atender exclusivamente os requisitos 4 (Aderência) e 5 (Efetividade) do enunciado.
+**Decisão:**
+- `src/monitor/dashboards/app.py`: removida a aba "Visão Geral" inteira (manchete, KPIs, distribuição de resultado micro, completude × êxito, custo total, expander por UF/financeiro). Removida função `baseline_mtime_iso`. Radio de navegação passa a ter apenas `["Aderência", "Efetividade"]`, default = Aderência.
+- Removidos da sidebar: o caption "Política de Acordos · Banco UFMG" e o caption de fontes ("Baseline: 60k reais · Enriquecido: sintético (H5) · Política: mock/CSV"). Removidos também os dois `st.info("Fonte da política: ...")` que ficavam no topo das abas — transparência segue documentada aqui no DECISOES.
+- Navegação: `st.radio` nativo preservado, mas envolvido por `<div class="ufmg-nav-radio">` + CSS no tema que esconde os círculos e estiliza os labels como pills horizontais dentro de um container arredondado (abordagem A do briefing). Item selecionado usa accent laranja #FFAE35 + borda suave.
+- Título "Monitoramento" renderizado como `<h1 class="ufmg-sidebar-title">` via `st.markdown`, com CSS forçando `white-space: nowrap`, font-size 19px e `text-overflow: ellipsis` — garante uma linha única sem quebrar.
+- `baseline.json` continua sendo carregado: a função `metrics_effectiveness.redistribuicao_resultado_micro` depende dele para o gráfico "antes × depois" da aba Efetividade. Import `datetime` removido (ficou órfão).
+**Alternativas consideradas:**
+- `st.segmented_control` (opção B) — rejeitado: Streamlit 1.56 suporta, mas o CSS dos pills com radio + `label:has(input:checked)` oferece controle visual maior e casa melhor com as regras de tabs/expander já existentes no tema.
+- Dois `st.button` lado a lado (opção C) — rejeitado: precisaria de `st.session_state` próprio para simular seleção persistente, adicionando complexidade desnecessária.
+**Impacto:**
+- `app.py`: 1361 → 1083 linhas (−278 linhas).
+- Carga cognitiva da banca reduzida: uma só tela por frente (macro na plataforma React, micro = monitoramento aqui).
+- Nenhum teste tocado: `metrics_adherence`, `metrics_effectiveness`, `counterfactual` e `baseline` continuam intactos. Os 65 testes devem passar sem alteração.
+- Filtros globais (UF, escritório, sub-assunto, período) e slider `prob_aceita` preservados.
+**Revisitar se:** a banca pedir de volta uma visão-síntese dentro do Streamlit, ou se a plataforma React for removida.
+
+### [2026-04-17 20:10] Nomes próprios PT-BR para escritórios e advogados
+**Contexto:** o gerador entregava apenas IDs opacos (ESC01, ADV001...) no dataset enriquecido. Para a demo, o dashboard precisa mostrar nomes reconhecíveis ao lado dos rankings — ID puro não comunica nada à banca.
+**Decisão:** adicionar colunas de rotulagem sem alterar a estrutura:
+- `escritorio_nome`, `cidade_sede` no catálogo de escritórios (ESCRITORIOS).
+- `advogado_nome`, `numero_oab` em `gerar_advogados` (OAB/UF condizente com a região do escritório).
+- `cidade_sede_escritorio` propagada para cada linha do dataset enriquecido via map por `escritorio_id`.
+- Catálogos hardcoded: 15 nomes de escritórios (estilo médio/grande porte BR), ~60 primeiros nomes e 30 sobrenomes PT-BR, com diversidade de gênero e de região.
+- `metrics_adherence.aderencia_por_advogado` e `aderencia_por_escritorio` passam a carregar os nomes no groupby quando as colunas existirem no df (preserva compatibilidade com `df_mini` dos testes, que não tem essas colunas).
+**Backend/data.py:** inspecionado (`CASES`). Contém apenas nomes de autores (`plaintiff`: "Maria das Graças Silva Pereira", "José Raimundo Oliveira Costa") — são clientes, não advogados da plataforma. Nenhum nome foi importado para os 50 advogados. Catálogo fica só com a lista hardcoded. Cidades-sede usam a mesma granularidade do `profile.location` do backend ("São Luís - MA", "Manaus - AM") por consistência visual.
+**Estrutura (H5, H6, H7, H8) intacta:**
+- 10 escritórios com a mesma sequência de `aderencia_base` (3 clusters: ótimos 0.95/0.93/0.92, medianos 0.85/0.83/0.80/0.78, problemáticos 0.68/0.64/0.60).
+- 50 advogados (5 por escritório, round-robin).
+- Viés H7 (−8pp em faixa Alto) e seed=42 inalterados.
+- Ordem das chamadas `rng.*` dentro de `build()` preserva reprodutibilidade das demais colunas (datas, recomendações, ações, razões, valores).
+**API preservada:** `ESCRITORIOS`, `gerar_advogados`, `build`, `build_and_save` mantidos. Novas colunas são aditivas — nenhum teste existente (tests/test_adherence.py) valida ausência de `advogado_nome`/`escritorio_nome`.
+**Revisitar se:** surgir necessidade de unicidade determinística (hoje o desempate usa sufixo romano em colisões raras) ou se o backend publicar uma lista real de advogados da plataforma — nesse caso usamos prefixo.
+
 ### [2026-04-17 19:15] Não replicar números exatos da equipe de modelagem
 **Contexto:** equipe reporta R$ 30M de economia atual e R$ 50M no melhor caso (70% aceitação). Nosso contrafactual, com as mesmas premissas declaradas (mock `subs_total ≤ 3`, acordo 30%, aceitação 40%), calcula R$ 17,3M. Com aceitação 70% calcula R$ 30,2M — bate com "atual" mas não com "melhor caso".
 **Decisão:** não tentar calibrar o contrafactual para bater número-por-número com o pitch da equipe. Nosso papel é diferente:
