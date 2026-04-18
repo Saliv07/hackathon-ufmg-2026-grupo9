@@ -1,12 +1,20 @@
 import os
 import io
+import sys
 import time
 import base64
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
 from werkzeug.utils import secure_filename
+
+# Garante que o repo root está no sys.path para permitir `import src.monitor.*`
+# quando `main.py` é executado diretamente (python backend/main.py).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 from data import CASES, RAW_STATS
 from services.stats_service import calculate_macro_stats
 
@@ -365,6 +373,76 @@ def serve_upload(filename):
     if not os.path.exists(file_path):
         return jsonify({"error": "Arquivo não encontrado"}), 404
     return send_file(file_path, as_attachment=False)
+
+
+# ── Monitoramento · Filtros auxiliares ─────────────────────────────────────────
+
+@app.route('/api/monitoring/filtros', methods=['GET'])
+def monitoring_filtros():
+    """Expõe opções de filtro (UFs, escritórios, período) para o painel React."""
+    try:
+        import pandas as pd
+        from pathlib import Path
+        path = Path(_REPO_ROOT) / "data" / "processed" / "casos_enriquecidos.parquet"
+        if not path.exists():
+            return jsonify({
+                "ufs": [], "escritorios": [],
+                "escritorios_nomes": {}, "periodo": None,
+            })
+        df = pd.read_parquet(path)
+        ufs = sorted(df["uf"].dropna().unique().tolist()) if "uf" in df.columns else []
+        esc_ids = (
+            sorted(df["escritorio_id"].dropna().unique().tolist())
+            if "escritorio_id" in df.columns else []
+        )
+        esc_nomes: dict = {}
+        if "escritorio_id" in df.columns and "escritorio_nome" in df.columns:
+            pairs = df[["escritorio_id", "escritorio_nome"]].drop_duplicates()
+            esc_nomes = dict(zip(pairs["escritorio_id"], pairs["escritorio_nome"]))
+        periodo = None
+        if "data_decisao" in df.columns:
+            periodo = {
+                "min": pd.Timestamp(df["data_decisao"].min()).date().isoformat(),
+                "max": pd.Timestamp(df["data_decisao"].max()).date().isoformat(),
+            }
+        return jsonify({
+            "ufs": ufs,
+            "escritorios": esc_ids,
+            "escritorios_nomes": esc_nomes,
+            "periodo": periodo,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Dash app (montado em /monitoramento/) ──────────────────────────────────────
+# Import tardio (depois de todas as rotas /api/*) para que o Dash não engula
+# paths como /monitoramento/* que são exclusivamente dele.
+try:
+    from src.monitor.dash_app import create_dash_app  # type: ignore
+    _dash_app = create_dash_app(app)
+    print("DEBUG: Dash app montado em /monitoramento/")
+except Exception as _dash_err:
+    print(f"WARNING: não foi possível montar o Dash app: {_dash_err}")
+    _dash_app = None
+
+
+# ── Frontend React (build estático) — catch-all DEVE ficar por último ─────────
+FRONTEND_DIST = os.path.join(_REPO_ROOT, "frontend", "dist")
+
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """Serve o build React. Arquivos reais vencem; senão cai no index.html (SPA)."""
+    # Não captura /api/* nem /monitoramento/* — Flask tem rotas específicas para isso.
+    if not os.path.isdir(FRONTEND_DIST):
+        return jsonify({
+            "error": "frontend/dist não existe. Rode `npm run build` no frontend.",
+        }), 503
+    if path and os.path.exists(os.path.join(FRONTEND_DIST, path)):
+        return send_from_directory(FRONTEND_DIST, path)
+    return send_from_directory(FRONTEND_DIST, 'index.html')
 
 
 if __name__ == '__main__':
