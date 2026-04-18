@@ -9,6 +9,7 @@ from openai import OpenAI
 from werkzeug.utils import secure_filename
 from data import CASES, RAW_STATS
 from services.stats_service import calculate_macro_stats
+from services.policy_service import get_policy_text, load_policy
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 api_key = os.getenv("OPENAI_API_KEY")
@@ -218,7 +219,7 @@ def analyze_case():
         "Você deve seguir RIGOROSAMENTE a Política de Acordos abaixo. "
         "Use o modelo preditivo como informação complementar para embasar sua justificativa.\n\n"
 
-        "## Política de Acordos\n{policy_text}\n\n"
+        f"## Política de Acordos\n{get_policy_text()}\n\n"
 
         "## Como Usar o Modelo Preditivo XGBoost\n"
         "- O modelo foi treinado em 60.000 processos históricos do banco\n"
@@ -227,7 +228,12 @@ def analyze_case():
         "- A Política de Acordos sempre prevalece sobre o modelo\n\n"
 
         "## Formato da Resposta\n"
-        "Estruture sua análise assim:\n"
+        "REGRA FUNDAMENTAL: Responda EXATAMENTE o que o advogado pedir. "
+        "Se ele pedir 'apenas o valor', responda só o valor. "
+        "Se pedir 'apenas a recomendação', responda só a recomendação. "
+        "Se fizer uma saudação, responda cordialmente. "
+        "Use o formato estruturado completo SOMENTE quando for pedida uma análise completa do caso ou uma explicação do por que deu um resultado, por exemplo: 'Por que o resultado deu para defender?'.\n\n"
+        "Quando for uma análise de caso, estruture assim:\n"
         "1. *Recomendação*: ACORDO ou DEFESA (em destaque)\n"
         "2. *Justificativa pela Política*: qual cenário da matriz se aplica e por quê\n"
         "3. *Modelo Preditivo*: cite a probabilidade como informação complementar. NÃO MENCIONE DIRETAMENTE O MODELO. POR MAIS QUE ESTEJAMOS CALCULANDO A PROBABILIDADE DE ACORDO, NÃO UTILIZE ESSAS PALAVRAS, POIS PODE FICAR AMBÍGUO EM CASO DE RESULTADO = DEFESA. UTILIZE PROBABILIDADE DE ÊXITO NO PROCESSO, CASO SEJA O CASO\n"
@@ -388,4 +394,4 @@ def serve_upload(filename):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=True, port=5001, host='0.0.0.0')

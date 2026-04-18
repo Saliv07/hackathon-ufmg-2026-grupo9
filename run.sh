@@ -1,0 +1,34 @@
+#!/bin/bash
+
+echo "=================================================="
+echo "🚀 Iniciando Plataforma Jurídica do Grupo 9..."
+echo "=================================================="
+
+echo ""
+echo "[1/4] Preparando o ambiente do Backend (Python)..."
+cd backend
+python3 -m venv venv
+
+echo "[2/4] Instalando dependências do Backend..."
+./venv/bin/python -m pip install -r requirements.txt
+
+echo "[3/4] Iniciando o Backend em segundo plano..."
+./venv/bin/python main.py &
+BACKEND_PID=$!
+
+# Garante que o Backend seja encerrado quando o usuário apertar CTRL+C
+trap "kill $BACKEND_PID 2>/dev/null" EXIT
+
+cd ..
+
+echo ""
+echo "[4/4] Preparando o ambiente do Frontend (Node.js)..."
+cd frontend
+echo "Instalando dependências do Frontend..."
+npm install
+
+echo ""
+echo "✨ Tudo pronto! Iniciando o servidor Frontend..."
+echo "👉 Acesse a URL gerada abaixo no seu navegador!"
+echo "=================================================="
+npm run dev
