@@ -154,13 +154,14 @@ html, body {{
 }}
 
 .monitor-root {{
-  padding: 24px 36px 40px 36px;
+  padding: 16px 24px 32px 24px;
   max-width: 1400px;
   margin: 0 auto;
+  font-size: 13px;
 }}
 
 .monitor-title {{
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: {Colors.TEXT_MAIN};
@@ -168,9 +169,9 @@ html, body {{
 }}
 
 .monitor-caption {{
-  font-size: 13px;
+  font-size: 12px;
   color: {Colors.TEXT_MUTED};
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }}
 
 /* --- Tabs --- */
@@ -179,10 +180,10 @@ html, body {{
   color: {Colors.TEXT_MUTED} !important;
   border: none !important;
   border-radius: 6px !important;
-  padding: 8px 18px !important;
+  padding: 6px 14px !important;
   font-family: {FONT_PRIMARY} !important;
   font-weight: 500 !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
 }}
 .monitor-tabs .tab--selected {{
   background: {Colors.BG_ELEV} !important;
@@ -203,37 +204,38 @@ html, body {{
 .ufmg-headline {{
   background: {Colors.BG_PANEL};
   border: 1px solid {Colors.BORDER};
-  border-left: 4px solid {Colors.ACCENT};
+  border-left: 3px solid {Colors.ACCENT};
   border-radius: 10px;
-  padding: 28px 32px;
-  margin: 8px 0 24px 0;
+  padding: 20px 24px;
+  margin: 6px 0 20px 0;
 }}
 .ufmg-headline-insight {{
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
   color: {Colors.TEXT_MAIN};
   line-height: 1.45;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }}
 .ufmg-headline-rule {{
-  width: 48px;
+  width: 40px;
   height: 2px;
   background: {Colors.BORDER_STRONG};
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }}
 .ufmg-headline-number {{
   font-family: {FONT_PRIMARY};
-  font-size: 52px;
+  font-size: 40px;
   font-weight: 700;
   color: {Colors.ACCENT};
   letter-spacing: -0.03em;
   line-height: 1.0;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }}
 .ufmg-headline-sub {{
-  font-size: 14px;
-  color: {Colors.TEXT_MUTED};
-  line-height: 1.55;
+  font-size: 12px;
+  color: {Colors.TEXT_MAIN};
+  line-height: 1.5;
+  opacity: 0.85;
 }}
 
 /* --- KPIs --- */
@@ -262,7 +264,7 @@ html, body {{
 }}
 .kpi-card .kpi-value {{
   font-family: {FONT_PRIMARY};
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: {Colors.TEXT_MAIN};
@@ -341,14 +343,47 @@ html, body {{
   font-weight: 500;
   margin-bottom: 6px;
 }}
-.rc-slider-track {{ background-color: {Colors.ACCENT} !important; }}
-.rc-slider-handle {{
+.rc-slider {{ margin: 4px 8px 24px; }}
+.rc-slider-track,
+.rc-slider-tracks {{ background-color: {Colors.ACCENT} !important; height: 4px !important; }}
+.rc-slider-rail {{ background-color: {Colors.BORDER_STRONG} !important; height: 4px !important; }}
+.rc-slider-handle,
+.rc-slider-handle-1,
+.rc-slider-handle-dragging {{
   background-color: {Colors.ACCENT} !important;
-  border-color: {Colors.ACCENT_HOVER} !important;
+  border: 2px solid {Colors.BG_MAIN} !important;
+  box-shadow: 0 0 0 3px {Colors.ACCENT} !important;
+  opacity: 1 !important;
+  width: 14px !important;
+  height: 14px !important;
+  margin-top: -5px !important;
 }}
-.rc-slider-rail {{ background-color: {Colors.BORDER_STRONG} !important; }}
-.rc-slider-mark-text {{ color: {Colors.TEXT_MUTED} !important; }}
-.rc-slider-mark-text-active {{ color: {Colors.ACCENT} !important; }}
+.rc-slider-mark {{ top: 14px !important; }}
+.rc-slider-mark-text {{
+  color: {Colors.TEXT_MAIN} !important;
+  font-family: {FONT_MONO} !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em;
+}}
+.rc-slider-mark-text-active {{ color: {Colors.ACCENT} !important; font-weight: 700 !important; }}
+.rc-slider-dot {{
+  background-color: {Colors.BG_PANEL} !important;
+  border-color: {Colors.BORDER_STRONG} !important;
+  width: 6px !important; height: 6px !important;
+  bottom: -1px !important;
+}}
+.rc-slider-dot-active {{ border-color: {Colors.ACCENT} !important; }}
+.rc-slider-tooltip-inner {{
+  background-color: {Colors.BG_ELEV} !important;
+  color: {Colors.ACCENT} !important;
+  font-family: {FONT_MONO} !important;
+  font-size: 11px !important;
+  border: 1px solid {Colors.ACCENT} !important;
+  box-shadow: none !important;
+  padding: 2px 8px !important;
+}}
+.rc-slider-tooltip-arrow {{ border-bottom-color: {Colors.ACCENT} !important; }}
 
 /* --- Table --- */
 .monitor-table {{
@@ -697,12 +732,21 @@ def create_dash_app(flask_server):
         ))
         fig.add_vline(
             x=0.60, line_dash="dash", line_color=Colors.DANGER,
-            annotation_text="Limite urgente (60%)", annotation_position="top",
+            annotation_text="Limite urgente (60%)",
+            annotation_position="top right",
+            annotation=dict(
+                font=dict(size=11, color=Colors.DANGER),
+                bgcolor=Colors.BG_PANEL,
+                bordercolor=Colors.DANGER,
+                borderwidth=1,
+                borderpad=3,
+                yanchor="bottom",
+            ),
         )
         fig.update_layout(
             xaxis_title="Aderência", yaxis_title=None,
             xaxis_tickformat=".0%", xaxis_range=[0, 1.0],
-            margin=dict(l=10, r=40, t=10, b=10), showlegend=False,
+            margin=dict(l=10, r=40, t=28, b=10), showlegend=False,
         )
         return _apply_layout(fig, height=380)
 
@@ -751,6 +795,15 @@ def create_dash_app(flask_server):
         )
         return _apply_layout(fig, height=380)
 
+    # Labels humanizados para razao_override (snake_case -> PT-BR)
+    LABEL_RAZOES = {
+        "discordancia_score": "Discordância do score",
+        "info_nova": "Nova informação do caso",
+        "neg_em_andamento": "Negociação em andamento",
+        "erro_ferramenta": "Erro da ferramenta",
+        "outro": "Outro",
+    }
+
     def _build_razoes_fig(df_f: pd.DataFrame) -> go.Figure | None:
         razoes = metrics_adherence.distribuicao_razoes_override(df_f)
         if razoes.empty:
@@ -761,6 +814,8 @@ def create_dash_app(flask_server):
         df_raz["label"] = df_raz["proporcao"].apply(
             lambda p: f"{p*100:.1f}%".replace(".", ",")
         )
+        # Humaniza nomes mantendo a categoria "discordancia_score" em destaque
+        df_raz["razao_label"] = df_raz["razao"].map(LABEL_RAZOES).fillna(df_raz["razao"])
         cores = [
             Colors.DANGER if r == "discordancia_score"
             else Colors.TEXT_MUTED if r == "outro"
@@ -768,7 +823,7 @@ def create_dash_app(flask_server):
             for r in df_raz["razao"]
         ]
         fig = go.Figure(go.Bar(
-            x=df_raz["proporcao"], y=df_raz["razao"], orientation="h",
+            x=df_raz["proporcao"], y=df_raz["razao_label"], orientation="h",
             marker_color=cores,
             text=df_raz["label"], textposition="outside",
             hovertemplate="<b>%{y}</b><br>%{x:.1%}<extra></extra>",
@@ -1031,12 +1086,21 @@ def create_dash_app(flask_server):
         ))
         fig.add_vline(
             x=0.30, line_dash="dash", line_color=Colors.SUCCESS,
-            annotation_text="30% (política)", annotation_position="top",
+            annotation_text="30% (política)",
+            annotation_position="top right",
+            annotation=dict(
+                font=dict(size=11, color=Colors.SUCCESS),
+                bgcolor=Colors.BG_PANEL,
+                bordercolor=Colors.SUCCESS,
+                borderwidth=1,
+                borderpad=3,
+                yanchor="bottom",
+            ),
         )
         fig.update_layout(
             xaxis_title="Valor do acordo / valor da causa",
             yaxis_title="Número de acordos",
-            margin=dict(l=10, r=10, t=10, b=10), showlegend=False,
+            margin=dict(l=10, r=10, t=28, b=10), showlegend=False,
         )
         return _apply_layout(fig, height=320)
 
@@ -1058,10 +1122,9 @@ def create_dash_app(flask_server):
             filtros.get("periodo_from"), filtros.get("periodo_to"),
         )
 
-        filtros_str = _filtros_ativos_str(filtros)
-        filtros_row = (
-            [html.Div(filtros_str, className="active-filters")] if filtros_str else []
-        )
+        # Banner "Filtros ativos" removido — o React (sidebar da plataforma)
+        # já mostra os filtros ativos de forma centralizada.
+        filtros_row: list = []
 
         if df_f is None or len(df_f) == 0:
             return filtros_row + [info_box(
@@ -1102,35 +1165,42 @@ def create_dash_app(flask_server):
         else:
             pct_justif = 0.0
 
-        # MANCHETE
+        # HERO — título técnico objetivo (padrão catálogo)
+        insight = "A01 · Taxa de Seguimento Global"
         if n_criticos > 0 and n_escr_criticos > 0:
-            insight = (
-                f"{n_criticos} advogado(s) concentrado(s) em {n_escr_criticos} "
-                f"escritório(s) respondem por {pct_risco*100:.0f}% "
-                "do risco financeiro"
-            )
             subtxt = (
-                "Taxa global de aderência à política — meta mínima 85%. "
-                f"{fmt_int_br(n_over)} override(s) no recorte, "
-                f"{pct_justif*100:.0f}% justificados."
+                f"{n_criticos} advogado(s) crítico(s) em {n_escr_criticos} "
+                f"escritório(s) · {pct_risco*100:.0f}% do risco financeiro · "
+                f"{fmt_int_br(n_over)} override(s) ({pct_justif*100:.0f}% justificados)"
             )
         else:
-            insight = "Nenhum advogado crítico (<60%) no recorte atual"
-            subtxt = "Taxa global de aderência à política — meta mínima 85%"
+            subtxt = f"{fmt_int_br(n_over)} override(s) · nenhum advogado crítico (<60%)"
 
         # KPIs
         gap_delta = f"{gap_pond*100:+.1f} pp vs seguimento".replace(".", ",")
 
+        # Subtexto descritivo cru: "N de M casos seguiram a política"
+        n_aderente = int(df_f["aderente"].sum())
+        n_total = int(len(df_f))
+        n_override = int(n_total - n_aderente)
+
         kpi_row = html.Div([
-            kpi_card("Taxa de seguimento", fmt_pct(tsg), severidade="accent"),
-            kpi_card("Taxa de override", fmt_pct(tov)),
             kpi_card(
-                "Aderência ponderada (risco R$)",
-                fmt_pct(adh_pond),
-                delta=gap_delta,
-                severidade="success" if gap_pond >= 0 else "danger",
+                "A01 · Taxa de Seguimento",
+                fmt_pct(tsg),
+                delta=f"{fmt_int_br(n_aderente)} de {fmt_int_br(n_total)} casos seguiram a recomendação",
+                severidade="accent",
             ),
-            kpi_card("Overrides justificados", fmt_pct(pct_justif)),
+            kpi_card(
+                "A02 · Taxa de Override",
+                fmt_pct(tov),
+                delta=f"{fmt_int_br(n_override)} casos em que o advogado desviou da política",
+            ),
+            kpi_card(
+                "A13 · Overrides Justificados",
+                fmt_pct(pct_justif),
+                delta="info nova, negociação ou erro da ferramenta",
+            ),
         ], className="kpi-row")
 
         # gráficos principais
@@ -1139,17 +1209,17 @@ def create_dash_app(flask_server):
         fig_esc = _build_escritorio_fig(df_f)
 
         charts_prova = html.Div([
-            chart_wrap("Evolução ao longo do tempo", fig_drift, "fig-drift"),
+            chart_wrap("A18 · Drift Temporal de Aderência", fig_drift, "fig-drift"),
             html.Div([
-                chart_wrap("Top 10 advogados com pior aderência", fig_adv, "fig-adv"),
-                chart_wrap("Aderência por escritório", fig_esc, "fig-esc"),
+                chart_wrap("A05 · Aderência por Advogado (bottom 10)", fig_adv, "fig-adv"),
+                chart_wrap("A06 · Aderência por Escritório", fig_esc, "fig-esc"),
             ], className="grid-2"),
         ])
 
         # exploração
         fig_razoes = _build_razoes_fig(df_f)
         razoes_section = (
-            chart_wrap("Razões de override", fig_razoes, "fig-razoes")
+            chart_wrap("A13 · Distribuição de Razões de Override", fig_razoes, "fig-razoes")
             if fig_razoes is not None
             else info_box("Nenhum override no recorte atual.")
         )
@@ -1186,19 +1256,18 @@ def create_dash_app(flask_server):
         return filtros_row + [
             headline(insight, fmt_pct(tsg), subtxt),
             kpi_row,
-            section_divider("Prova · o que sustenta o número"),
+            section_divider("Métricas principais"),
             charts_prova,
-            section_divider("Exploração · segmentações e alertas completos"),
+            section_divider("Segmentações e alertas"),
             razoes_section,
             html.Div([
-                chart_wrap("Aderência por faixa de valor", fig_faixa, "fig-faixa"),
-                chart_wrap("Aderência por completude probatória", fig_compl, "fig-compl"),
+                chart_wrap("A08 · Aderência por Faixa de Valor", fig_faixa, "fig-faixa"),
+                chart_wrap("A04 · Aderência por Completude", fig_compl, "fig-compl"),
             ], className="grid-2"),
-            chart_wrap("Aderência por UF", fig_uf, "fig-uf"),
+            chart_wrap("A07 · Aderência por UF", fig_uf, "fig-uf"),
             alertas_section,
             html.Div(
-                f"Fonte da política: {fonte.upper()}. "
-                "Métricas A01-A20 computadas diretamente dos 60k + overlay de política.",
+                f"Fonte: {fonte.upper()}",
                 className="monitor-footer-caption",
             ),
         ]
@@ -1222,10 +1291,9 @@ def create_dash_app(flask_server):
             filtros.get("periodo_from"), filtros.get("periodo_to"),
         )
 
-        filtros_str = _filtros_ativos_str(filtros)
-        filtros_row = (
-            [html.Div(filtros_str, className="active-filters")] if filtros_str else []
-        )
+        # Banner "Filtros ativos" removido — o React (sidebar da plataforma)
+        # já mostra os filtros ativos de forma centralizada.
+        filtros_row: list = []
 
         if df_f is None or len(df_f) == 0:
             return filtros_row + [info_box(
@@ -1260,32 +1328,33 @@ def create_dash_app(flask_server):
         )
         economia_potencial = sim_potencial["economia_total"]
 
-        # MANCHETE
-        insight = (
-            f"Política em curso deixa {gap_pct*100:.0f}% da economia potencial "
-            "sobre a mesa"
-        )
+        # HERO — explícito: o valor grande É a economia MÁXIMA possível
+        # se todos seguissem a política. Texto cru, sem ambiguidade.
+        custo_obs = sim_potencial["custo_observado_total"]
+        insight = "E02 · Teto de economia anual vs custo atual"
         subtxt = (
-            "Economia potencial anual se aderência = 100% "
-            f"(probabilidade de aceitação atual: {prob_aceita:.0%})"
+            f"Se 100% dos advogados seguirem a política "
+            f"(acordo aceito por {prob_aceita:.0%} dos autores), "
+            f"o banco deixa de pagar este valor dos "
+            f"{fmt_brl_compact(custo_obs)} gastos hoje."
         )
 
-        # KPIs
+        # KPIs com descrição do que cada número É
         k1 = kpi_card(
-            "Economia potencial",
+            "E02 · Teto de economia (aderência 100%)",
             fmt_brl_compact(sim_potencial["economia_total"]),
-            delta=fmt_pct(sim_potencial["economia_percentual"]) + " do baseline",
+            delta=f"{fmt_pct(sim_potencial['economia_percentual'])} dos {fmt_brl_compact(custo_obs)} gastos hoje",
             severidade="accent",
         )
         k2 = kpi_card(
-            "Economia realizada",
+            "E03 · Economia realizada no recorte",
             fmt_brl_compact(sim_realizada["economia_total"]),
-            delta=fmt_pct(sim_realizada["economia_percentual"]) + " do baseline",
+            delta=f"resultado se os advogados agirem como agiram na amostra",
         )
         k3 = kpi_card(
-            "Gap de aderência",
+            "Δ · Perda por não-aderência",
             fmt_brl_compact(gap_rs),
-            delta=f"-{gap_pct*100:.1f}% do potencial".replace(".", ","),
+            delta=f"{gap_pct*100:.0f}% do teto deixado sobre a mesa pelos overrides".replace(".", ","),
             severidade="danger",
         )
         kpi_row = html.Div([k1, k2, k3], className="kpi-row")
@@ -1296,7 +1365,7 @@ def create_dash_app(flask_server):
         fig_red = _build_redistribuicao_fig(df_f, baseline, prob_aceita)
 
         temp_section = (
-            chart_wrap("Economia acumulada mês a mês", fig_temp, "fig-temp")
+            chart_wrap("E10 · Economia Acumulada Temporal", fig_temp, "fig-temp")
             if fig_temp is not None
             else info_box("Sem dados temporais no recorte atual.")
         )
@@ -1306,12 +1375,12 @@ def create_dash_app(flask_server):
         fig_hist = _build_histograma_acordos_fig(df_f)
 
         cp_section = (
-            chart_wrap("Custo por faixa de completude", fig_cp, "fig-cp")
+            chart_wrap("E06 · Custo Médio por Completude", fig_cp, "fig-cp")
             if fig_cp is not None
             else info_box("Sem dados no recorte atual.")
         )
         hist_section = (
-            chart_wrap("Distribuição dos valores de acordo realizados",
+            chart_wrap("E11 · Distribuição de Valores de Acordo",
                        fig_hist, "fig-hist")
             if fig_hist is not None
             else info_box("Sem acordos realizados no recorte atual.")
@@ -1334,110 +1403,52 @@ def create_dash_app(flask_server):
             html.Table(det_rows, className="monitor-table"),
         ], className="chart-wrap")
 
-        slider_wrap = html.Div([
-            html.Div(
-                "PROBABILIDADE DE ACEITAÇÃO DO ACORDO",
-                className="prob-label",
-            ),
-            dcc.Slider(
-                id="prob-aceita-slider",
-                min=0.10, max=0.95, step=0.05, value=float(prob_aceita),
-                marks={
-                    0.10: "10%", 0.25: "25%", 0.40: "40%",
-                    0.55: "55%", 0.70: "70%", 0.85: "85%", 0.95: "95%",
-                },
-                tooltip={"placement": "bottom", "always_visible": False},
-                updatemode="mouseup",
-            ),
-        ], className="prob-slider-wrap")
-
+        # Slider vive no React (sidebar da plataforma) — aqui só consumimos
+        # o valor via URL query string.
         return filtros_row + [
             headline(insight, fmt_brl_compact(economia_potencial), subtxt),
-            slider_wrap,
             kpi_row,
-            section_divider("Prova · o que sustenta o número"),
-            chart_wrap("Curva de sensibilidade · probabilidade × economia",
+            section_divider("Métricas principais"),
+            chart_wrap("E02 · Sensibilidade × prob_aceita",
                        fig_sens, "fig-sens"),
             html.Div([
                 temp_section,
-                chart_wrap("Redistribuição de resultado micro · antes × depois",
+                chart_wrap("E09 · Distribuição de Resultado Micro",
                            fig_red, "fig-red"),
             ], className="grid-2"),
-            section_divider("Exploração · custos e distribuições"),
+            section_divider("Drill-down"),
             html.Div([cp_section, hist_section], className="grid-2"),
             det_section,
             html.Div(
-                f"Fonte da política: {fonte.upper()}. "
-                "prob_aceita é parametrizável via URL (?prob=0.50) ou pelo slider.",
+                f"Fonte: {fonte.upper()} · prob_aceita: {prob_aceita:.0%}",
                 className="monitor-footer-caption",
             ),
         ]
 
     # ============================================================
-    # Layout (casca) — o conteúdo é renderizado via callback
+    # Layout (casca minima) — só o container; conteudo via callback.
+    # Header, tabs e filtros ficam na plataforma React (sidebar).
+    # O Dash recebe tab + filtros via URL query string.
     # ============================================================
     app.layout = html.Div([
         dcc.Location(id="monitor-url", refresh=False),
-        html.Div([
-            html.Div([
-                html.H1("Monitoramento da política de acordos",
-                        className="monitor-title"),
-                html.Div(
-                    "Aderência + Efetividade · Banco UFMG · Painel executivo",
-                    className="monitor-caption",
-                ),
-                # Tabs
-                html.Div([
-                    dcc.Tabs(
-                        id="monitor-tabs-obj",
-                        value="aderencia",
-                        className="monitor-tabs",
-                        children=[
-                            dcc.Tab(label="Aderência", value="aderencia",
-                                    className="tab", selected_className="tab--selected"),
-                            dcc.Tab(label="Efetividade", value="efetividade",
-                                    className="tab", selected_className="tab--selected"),
-                        ],
-                    ),
-                ], className="monitor-tabs-container"),
-                html.Div(id="monitor-content"),
-            ], className="monitor-root"),
-        ]),
+        html.Div(id="monitor-content", className="monitor-root"),
     ])
 
     # ============================================================
-    # Callbacks
+    # Callbacks — a tab vem da URL (?tab=...), controlada pelo React
     # ============================================================
     @app.callback(
         Output("monitor-content", "children"),
-        Input("monitor-tabs-obj", "value"),
         Input("monitor-url", "search"),
     )
-    def _render_tab(tab_value: str, search: str):
+    def _render_tab(search: str):
         filtros = parse_filtros_da_url(search or "")
-        # tab da URL prevalece apenas no load inicial; depois o usuário
-        # pode trocar pelo dcc.Tabs e permanece consistente
-        if tab_value is None:
-            tab_value = filtros.get("tab", "aderencia")
+        tab_value = filtros.get("tab", "aderencia")
         if tab_value == "efetividade":
             return render_efetividade(filtros, filtros.get("prob_aceita", 0.40))
         return render_aderencia(filtros)
 
-    # Callback incremental: quando o slider muda, recomputa apenas os
-    # componentes dependentes de prob_aceita (performance em SPA grande).
-    # Implementação simples: delega para o mesmo render (o cache do parquet
-    # garante que não há re-leitura do disco).
-    @app.callback(
-        Output("monitor-content", "children", allow_duplicate=True),
-        Input("prob-aceita-slider", "value"),
-        Input("monitor-url", "search"),
-        prevent_initial_call=True,
-    )
-    def _on_slider_change(prob_value, search):
-        if prob_value is None:
-            return no_update
-        filtros = parse_filtros_da_url(search or "")
-        filtros["prob_aceita"] = float(prob_value)
-        return render_efetividade(filtros, float(prob_value))
-
+    # Slider, tabs e filtros são controlados exclusivamente pelo React
+    # via URL query string — o Dash observa dcc.Location apenas.
     return app
