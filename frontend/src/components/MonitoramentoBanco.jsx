@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { AlertCircle, ExternalLink } from 'lucide-react';
 import './MonitoramentoBanco.css';
 
-const STREAMLIT_URL = `http://${window.location.hostname}:8501`;
+// Em produção (com Caddy gateway), o Streamlit é servido no mesmo origin
+// em /monitoramento/. Em dev (Vite standalone), cai no fallback direto na :8501.
+const STREAMLIT_URL = window.location.port === '5173'
+  ? `http://${window.location.hostname}:8501/monitoramento/`
+  : '/monitoramento/';
 
 export default function MonitoramentoBanco() {
   const [loadError, setLoadError] = useState(false);
