@@ -11,6 +11,7 @@ import CaseConclusion from './components/CaseConclusion';
 import GlobalSidebar from './components/GlobalSidebar';
 import LoginScreen from './components/LoginScreen';
 import DataExplorer from './components/DataExplorer';
+import MonitoramentoBanco from './components/MonitoramentoBanco';
 import SettingsModal from './components/SettingsModal';
 import SearchOverlay from './components/SearchOverlay';
 
@@ -279,6 +280,7 @@ function App() {
     if (currentView === 'case-summary') return <CaseSummary caseData={selectedCase} onProceed={handleProceedToWorkspace} />;
     if (currentView === 'dashboard') return <Dashboard caseData={selectedCase || cases[0]} />;
     if (currentView === 'data-explorer') return <DataExplorer />;
+    if (currentView === 'monitoramento') return <MonitoramentoBanco />;
 
     if (currentView === 'case-conclusion') {
       return (

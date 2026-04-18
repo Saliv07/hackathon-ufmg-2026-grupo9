@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, LayoutDashboard, Database, Settings, LogOut, ChevronLeft, ChevronRight, Shield, X } from 'lucide-react';
+import { Plus, LayoutDashboard, Database, Settings, LogOut, ChevronLeft, ChevronRight, Shield, X, BarChart3 } from 'lucide-react';
 import './GlobalSidebar.css';
 
 function PolicyModal({ onClose }) {
@@ -238,6 +238,14 @@ function GlobalSidebar({ cases, currentView, selectedCase, onNavigate, onSelectC
           >
             <Shield size={16} />
             {!isCollapsed && <span>Política de acordos</span>}
+          </div>
+          <div
+            className={`footer-item ${currentView === 'monitoramento' ? 'active' : ''}`}
+            title="Monitoramento (Banco UFMG)"
+            onClick={() => onNavigate('monitoramento')}
+          >
+            <BarChart3 size={16} />
+            {!isCollapsed && <span>Monitoramento</span>}
           </div>
           <div className="footer-item" title="Configurações" onClick={onOpenSettings}>
             <Settings size={16} />
