@@ -3,10 +3,10 @@
 *.env.local
 *.env.*.local
 
-# Dados sensíveis — não versionar
+# Dados sensíveis — não versionar (Apenas CSVs temporários)
 data/*.csv
-data/subsidios/
-data/processos_exemplo/
+# data/subsidios/
+# data/processos_exemplo/ (Liberado para modelos)
 
 # Dependências de pacotes
 node_modules/
@@ -33,6 +33,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.codex
+.local/
+frontend/.vite/
 
 # Modelos e checkpoints pesados
 *.bin

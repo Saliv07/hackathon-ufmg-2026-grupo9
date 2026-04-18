@@ -172,3 +172,45 @@ A URL deve seguir o formato:
 ```
 https://github.com/<usuario-ou-org>/hackathon-ufmg-2026-grupo<N>
 ```
+
+---
+
+## 🚀 Como Executar o Projeto
+
+Para facilitar a vida do desenvolvedor, criamos scripts que configuram o ambiente e iniciam tanto o **Backend** quanto o **Frontend** com um único comando.
+
+### 1. Pré-requisitos
+- **Node.js** (`20.19+` ou `22.12+`)
+- **Python** (v3.9 ou superior)
+- Uma chave da API da OpenAI (configurada no arquivo `.env`)
+
+### 2. Configuração Inicial
+Certifique-se de que o arquivo `.env` existe na raiz do projeto e contém sua chave:
+```env
+OPENAI_API_KEY=sk-sua-chave-aqui
+```
+
+### 3. Execução Rápida (Recomendado)
+
+#### No Windows:
+Abra o terminal na raiz do projeto e rode:
+```powershell
+.\run.ps1
+```
+*Este script criará o ambiente virtual do Python, instalará as dependências e abrirá o backend em uma nova janela.*
+
+#### No Linux ou macOS:
+Abra o terminal na raiz do projeto e rode:
+```bash
+bash run.sh
+```
+
+---
+
+## 🛠️ Estrutura do Projeto
+
+- `backend/`: API Flask (Python) para processamento de documentos e IA.
+- `frontend/`: Interface React (Vite) para visualização e chat.
+- `data/`: Bases de dados e documentos de exemplo.
+- `docs/`: Documentação e apresentações.
+- `run.ps1` / `run.sh`: Scripts de automação.
