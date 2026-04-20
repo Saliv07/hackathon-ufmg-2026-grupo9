@@ -2,7 +2,7 @@
 
 **Projeto:** Hackathon UFMG 2026 / Enter — Política de Acordos Banco UFMG
 **Escopo:** Requisitos 4 (Aderência) e 5 (Efetividade)
-**Responsável:** Matheus — Nekark Data Intelligence
+**Responsável:** Arthur Vilas
 **Branch:** `vilas`
 
 ---
